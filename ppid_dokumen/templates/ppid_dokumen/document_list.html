@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repository Dokumen PPID - UIN Ar-Raniry</title>
+
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- DataTables Bootstrap 5 -->
+    <link href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.bootstrap5.min.css" rel="stylesheet">
+
+    <style>
+        :root {
+            --ppid-primary: #1a5632;
+            --ppid-secondary: #f0f7f3;
+        }
+        body {
+            background-color: #f8f9fa;
+        }
+        .navbar-ppid {
+            background: linear-gradient(135deg, var(--ppid-primary), #237a47);
+        }
+        .hero-section {
+            background: linear-gradient(135deg, var(--ppid-primary) 0%, #237a47 50%, #2e9959 100%);
+            color: #fff;
+            padding: 3rem 0 2rem;
+        }
+        .hero-section h1 {
+            font-weight: 700;
+            font-size: 2rem;
+        }
+        .hero-section p {
+            opacity: 0.9;
+            font-size: 1.05rem;
+        }
+        .filter-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            margin-top: -2rem;
+            position: relative;
+            z-index: 10;
+        }
+        .filter-card .card-header {
+            background-color: var(--ppid-primary);
+            color: #fff;
+            border-radius: 12px 12px 0 0;
+            font-weight: 600;
+        }
+        .btn-ppid {
+            background-color: var(--ppid-primary);
+            border-color: var(--ppid-primary);
+            color: #fff;
+        }
+        .btn-ppid:hover {
+            background-color: #144427;
+            border-color: #144427;
+            color: #fff;
+        }
+        .table-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .table-card .card-header {
+            background-color: #fff;
+            border-bottom: 2px solid var(--ppid-primary);
+            border-radius: 12px 12px 0 0;
+            font-weight: 600;
+            color: var(--ppid-primary);
+        }
+        table.dataTable thead th {
+            background-color: var(--ppid-secondary);
+            color: var(--ppid-primary);
+            font-size: 0.85rem;
+            white-space: nowrap;
+        }
+        table.dataTable tbody td {
+            font-size: 0.85rem;
+            vertical-align: middle;
+        }
+        .badge-klasifikasi-umum { background-color: #198754; }
+        .badge-klasifikasi-terbatas { background-color: #fd7e14; }
+        .badge-klasifikasi-dikecualikan { background-color: #dc3545; }
+        .badge-status-berlaku { background-color: #198754; }
+        .badge-status-kadaluarsa { background-color: #6c757d; }
+        .badge-status-proses { background-color: #0dcaf0; color: #000; }
+        .btn-download {
+            font-size: 0.8rem;
+            padding: 4px 10px;
+        }
+        .stats-badge {
+            font-size: 0.95rem;
+        }
+        footer {
+            background-color: var(--ppid-primary);
+            color: rgba(255,255,255,0.8);
+            padding: 1.5rem 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark navbar-ppid">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="{% url 'ppid_dokumen:list' %}">
+            <i class="bi bi-archive-fill me-2"></i>PPID UIN Ar-Raniry
+        </a>
+    </div>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero-section text-center">
+    <div class="container">
+        <h1><i class="bi bi-folder2-open me-2"></i>Repository Dokumen PPID</h1>
+        <p class="mb-1">Universitas Islam Negeri Ar-Raniry Banda Aceh</p>
+        <p class="small opacity-75">Layanan Informasi Publik sesuai UU No. 14 Tahun 2008 tentang Keterbukaan Informasi Publik</p>
+    </div>
+</section>
+
+<div class="container my-4">
+
+    <!-- Filter Card -->
+    <div class="card filter-card mb-4">
+        <div class="card-header py-3">
+            <i class="bi bi-funnel-fill me-2"></i>Filter Dokumen
+        </div>
+        <div class="card-body">
+            <form method="get">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label for="unit" class="form-label fw-semibold">Unit Kerja</label>
+                        <select name="unit" id="unit" class="form-select">
+                            <option value="">-- Semua Unit --</option>
+                            {% for u in unit_list %}
+                                <option value="{{ u.id }}" {% if filter_values.unit == u.id|stringformat:"s" %}selected{% endif %}>{{ u.nama }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="kategori" class="form-label fw-semibold">Kategori Informasi</label>
+                        <select name="kategori" id="kategori" class="form-select">
+                            <option value="">-- Semua Kategori --</option>
+                            {% for k in kategori_list %}
+                                <option value="{{ k.id }}" {% if filter_values.kategori == k.id|stringformat:"s" %}selected{% endif %}>{{ k.nama }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label for="klasifikasi" class="form-label fw-semibold">Klasifikasi</label>
+                        <select name="klasifikasi" id="klasifikasi" class="form-select">
+                            <option value="">-- Semua --</option>
+                            {% for value, display in klasifikasi_choices %}
+                                <option value="{{ value }}" {% if filter_values.klasifikasi == value %}selected{% endif %}>{{ display }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="status" class="form-label fw-semibold">Status</label>
+                        <select name="status" id="status" class="form-select">
+                            <option value="">-- Semua --</option>
+                            {% for value, display in status_choices %}
+                                <option value="{{ value }}" {% if filter_values.status == value %}selected{% endif %}>{{ display }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="tahun" class="form-label fw-semibold">Tahun</label>
+                        <select name="tahun" id="tahun" class="form-select">
+                            <option value="">-- Semua --</option>
+                            {% for t in tahun_list %}
+                                <option value="{{ t }}" {% if filter_values.tahun == t|stringformat:"s" %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="nomor" class="form-label fw-semibold">Nomor</label>
+                        <input type="text" name="nomor" id="nomor" class="form-control" value="{{ filter_values.nomor }}" placeholder="Cari nomor...">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="q" class="form-label fw-semibold">Kata Kunci</label>
+                        <input type="text" name="q" id="q" class="form-control" value="{{ filter_values.q }}" placeholder="Cari dokumen...">
+                    </div>
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-ppid">
+                        <i class="bi bi-search me-1"></i>Filter
+                    </button>
+                    <a href="{% url 'ppid_dokumen:list' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card table-card">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-table me-2"></i>Daftar Dokumen</span>
+            <span class="badge bg-secondary stats-badge">{{ dokumen_list|length }} dokumen</span>
+        </div>
+        <div class="card-body p-0">
+            {% if not dokumen_list %}
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                <p class="mb-1 fw-semibold">Belum ada dokumen yang tersedia.</p>
+                <p class="small">Silakan tambahkan dokumen melalui halaman admin.</p>
+            </div>
+            {% else %}
+            <div class="table-responsive p-3">
+                <table id="tabel-dokumen" class="table table-striped table-hover align-middle" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>No.</th>
+                            <th>Unit</th>
+                            <th>Kategori</th>
+                            <th>Nomor</th>
+                            <th>Tahun</th>
+                            <th>Tentang</th>
+                            <th>Klasifikasi</th>
+                            <th>Status</th>
+                            <th>File</th>
+                            <th>Penulis</th>
+                            <th>Tanggal Terbit</th>
+                            <th>Diunduh</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in dokumen_list %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ d.unit.nama }}</td>
+                            <td>{{ d.kategori_informasi.nama }}</td>
+                            <td><span class="text-muted">{{ d.nomor }}</span></td>
+                            <td>{{ d.tahun }}</td>
+                            <td><strong>{{ d.tentang }}</strong></td>
+                            <td>
+                                <span class="badge badge-klasifikasi-{{ d.klasifikasi }}">
+                                    {{ d.get_klasifikasi_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-status-{{ d.status }}">
+                                    {{ d.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if d.is_external %}
+                                <a href="{% url 'ppid_dokumen:download' d.pk %}" class="btn btn-sm btn-outline-primary btn-download" target="_blank">
+                                    <i class="bi bi-box-arrow-up-right me-1"></i>Buka
+                                </a>
+                                {% else %}
+                                <a href="{% url 'ppid_dokumen:download' d.pk %}" class="btn btn-sm btn-ppid btn-download">
+                                    <i class="bi bi-download me-1"></i>Unduh
+                                </a>
+                                {% endif %}
+                            </td>
+                            <td>{{ d.penulis }}</td>
+                            <td>{{ d.tanggal_terbit|date:"d M Y" }}</td>
+                            <td><span class="badge bg-light text-dark">{{ d.diunduh }}x</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="mt-5 text-center">
+    <div class="container">
+        <p class="mb-1"><strong>PPID UIN Ar-Raniry Banda Aceh</strong></p>
+        <p class="mb-0 small">Jl. Syeikh Abdul Rauf, Kopelma Darussalam, Banda Aceh &bull; Layanan Informasi Publik</p>
+    </div>
+</footer>
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<script>
+    $(document).ready(function () {
+        if ($('#tabel-dokumen').length === 0) return;
+        $('#tabel-dokumen').DataTable({
+            dom: '<"d-flex justify-content-between align-items-center mb-3"Bf>rtip',
+            buttons: [
+                {
+                    extend: 'csv',
+                    className: 'btn btn-sm btn-outline-success',
+                    text: '<i class="bi bi-filetype-csv me-1"></i>CSV'
+                },
+                {
+                    extend: 'excel',
+                    className: 'btn btn-sm btn-outline-success',
+                    text: '<i class="bi bi-file-earmark-excel me-1"></i>Excel'
+                }
+            ],
+            pageLength: 25,
+            language: {
+                search: "",
+                searchPlaceholder: "Cari di tabel...",
+                lengthMenu: "Tampilkan _MENU_ data",
+                info: "Menampilkan _START_ - _END_ dari _TOTAL_ dokumen",
+                infoEmpty: "Tidak ada data",
+                zeroRecords: "Dokumen tidak ditemukan",
+                paginate: {
+                    previous: '<i class="bi bi-chevron-left"></i>',
+                    next: '<i class="bi bi-chevron-right"></i>'
+                }
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
