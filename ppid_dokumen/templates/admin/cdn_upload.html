@@ -1,0 +1,203 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Upload File ke CDN{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; Upload File ke CDN
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+    .cdn-upload-form {
+        max-width: 700px;
+        margin: 0 auto;
+    }
+    .cdn-upload-form .form-row {
+        margin-bottom: 1.2em;
+    }
+    .cdn-upload-form label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 4px;
+        color: #333;
+    }
+    .cdn-upload-form input[type="text"],
+    .cdn-upload-form input[type="number"],
+    .cdn-upload-form select,
+    .cdn-upload-form input[type="file"] {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .cdn-upload-form .help {
+        font-size: 12px;
+        color: #666;
+        margin-top: 4px;
+    }
+    .cdn-upload-form .submit-row {
+        margin-top: 2em;
+        padding: 12px;
+        background: #f0f0f0;
+        border-radius: 4px;
+    }
+    .cdn-upload-form .submit-row input[type="submit"] {
+        background: #417690;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        font-size: 14px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .cdn-upload-form .submit-row input[type="submit"]:hover {
+        background: #205067;
+    }
+    .path-preview {
+        margin-top: 1.5em;
+        padding: 12px;
+        background: #e8f5e9;
+        border: 1px solid #a5d6a7;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 13px;
+    }
+    .info-box {
+        margin-bottom: 1.5em;
+        padding: 12px;
+        background: #e3f2fd;
+        border: 1px solid #90caf9;
+        border-radius: 4px;
+        font-size: 13px;
+    }
+</style>
+
+<div class="cdn-upload-form">
+    <h2>📤 Upload File ke CDN Server</h2>
+
+    <div class="info-box">
+        <strong>ℹ️ Info:</strong> Nama folder organisasi dan unit organisasi diambil dari data master.
+        Kelola referensi di <a href="{% url 'admin:ppid_dokumen_organisasi_changelist' %}">Organisasi</a>
+        dan <a href="{% url 'admin:ppid_dokumen_unitorganisasi_changelist' %}">Unit Organisasi</a>.
+    </div>
+
+    {% if messages %}
+    <ul class="messagelist">
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        <div class="form-row">
+            <label for="id_tahun">Tahun</label>
+            <input type="number" name="tahun" id="id_tahun"
+                   value="{{ form.tahun.value|default_if_none:'' }}" min="2000" max="2100" required>
+            <p class="help">{{ form.tahun.help_text }}</p>
+            {% if form.tahun.errors %}
+                <p class="help" style="color:red;">{{ form.tahun.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <div class="form-row">
+            <label for="id_organisasi">Organisasi</label>
+            <select name="organisasi" id="id_organisasi" required>
+                <option value="">-- Pilih Organisasi --</option>
+                {% for org in organisasi_list %}
+                    <option value="{{ org.pk }}" data-nama="{{ org.nama }}"
+                        {% if form.organisasi.value == org.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ org }}
+                    </option>
+                {% endfor %}
+            </select>
+            <p class="help">{{ form.organisasi.help_text }}</p>
+            {% if form.organisasi.errors %}
+                <p class="help" style="color:red;">{{ form.organisasi.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <div class="form-row">
+            <label for="id_unit_organisasi">Unit Organisasi (opsional)</label>
+            <select name="unit_organisasi" id="id_unit_organisasi">
+                <option value="">-- Pilih Unit (opsional) --</option>
+            </select>
+            <p class="help">{{ form.unit_organisasi.help_text }}</p>
+            {% if form.unit_organisasi.errors %}
+                <p class="help" style="color:red;">{{ form.unit_organisasi.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <div class="form-row">
+            <label for="id_file">File (bisa pilih banyak)</label>
+            <input type="file" name="file" id="id_file" multiple required>
+            <p class="help">Pilih satu atau beberapa file yang akan diupload ke CDN</p>
+            {% if form.file.errors %}
+                <p class="help" style="color:red;">{{ form.file.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <div class="path-preview">
+            <strong>📁 Lokasi upload:</strong>
+            <span id="path-display">/tahun/organisasi/[unit]/filename</span>
+        </div>
+
+        <div class="submit-row">
+            <input type="submit" value="Upload ke CDN">
+        </div>
+    </form>
+</div>
+
+<script>
+    // Data unit organisasi (pre-loaded untuk semua organisasi)
+    const unitsByOrg = {};
+    {% for unit in unit_list %}
+    if (!unitsByOrg[{{ unit.organisasi_id }}]) unitsByOrg[{{ unit.organisasi_id }}] = [];
+    unitsByOrg[{{ unit.organisasi_id }}].push({id: {{ unit.pk }}, nama: "{{ unit.nama }}"});
+    {% endfor %}
+
+    const orgSelect = document.getElementById('id_organisasi');
+    const unitSelect = document.getElementById('id_unit_organisasi');
+
+    orgSelect.addEventListener('change', function() {
+        const orgId = this.value;
+        unitSelect.innerHTML = '<option value="">-- Pilih Unit (opsional) --</option>';
+
+        if (orgId && unitsByOrg[orgId]) {
+            unitsByOrg[orgId].forEach(function(unit) {
+                const opt = document.createElement('option');
+                opt.value = unit.id;
+                opt.textContent = unit.nama;
+                unitSelect.appendChild(opt);
+            });
+        }
+        updatePathPreview();
+    });
+
+    unitSelect.addEventListener('change', updatePathPreview);
+    document.getElementById('id_tahun').addEventListener('input', updatePathPreview);
+
+    function updatePathPreview() {
+        const tahun = document.getElementById('id_tahun').value || '<tahun>';
+        const orgOption = orgSelect.options[orgSelect.selectedIndex];
+        const org = orgOption && orgOption.dataset.nama ? orgOption.dataset.nama : '<organisasi>';
+        const unitOption = unitSelect.options[unitSelect.selectedIndex];
+        const unit = unitOption && unitOption.value ? unitOption.textContent : '';
+
+        let path = tahun + '/' + org;
+        if (unit) path += '/' + unit;
+        path += '/';
+        document.getElementById('path-display').textContent = path;
+    }
+
+    // Trigger pada load untuk set state awal
+    updatePathPreview();
+</script>
+{% endblock %}

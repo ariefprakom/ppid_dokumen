@@ -30,6 +30,51 @@ class KategoriInformasi(models.Model):
         return self.nama
 
 
+class Organisasi(models.Model):
+    """Organisasi / bidang untuk struktur folder CDN (level 2)."""
+    nama = models.CharField(
+        "Nama Organisasi", max_length=100, unique=True,
+        help_text="Nama folder di CDN, contoh: AAKK, AUPK, LP2M, PPID, SPI"
+    )
+    deskripsi = models.CharField(
+        "Deskripsi", max_length=255, blank=True,
+        help_text="Nama lengkap, contoh: Akademik dan Kemahasiswaan"
+    )
+
+    class Meta:
+        verbose_name = "Organisasi"
+        verbose_name_plural = "Organisasi"
+        ordering = ["nama"]
+
+    def __str__(self):
+        if self.deskripsi:
+            return f"{self.nama} - {self.deskripsi}"
+        return self.nama
+
+
+class UnitOrganisasi(models.Model):
+    """Unit di bawah Organisasi untuk struktur folder CDN (level 3)."""
+    organisasi = models.ForeignKey(
+        Organisasi, on_delete=models.CASCADE, related_name="units"
+    )
+    nama = models.CharField(
+        "Nama Unit", max_length=100,
+        help_text="Nama folder unit di CDN, contoh: Administrasi Akademik"
+    )
+    deskripsi = models.CharField(
+        "Deskripsi", max_length=255, blank=True,
+    )
+
+    class Meta:
+        verbose_name = "Unit Organisasi"
+        verbose_name_plural = "Unit Organisasi"
+        ordering = ["organisasi__nama", "nama"]
+        unique_together = [("organisasi", "nama")]
+
+    def __str__(self):
+        return f"{self.organisasi.nama} / {self.nama}"
+
+
 class DokumenPPID(models.Model):
     KLASIFIKASI_CHOICES = [
         ("umum", "Umum"),

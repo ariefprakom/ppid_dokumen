@@ -7,6 +7,38 @@ from django.shortcuts import get_object_or_404, redirect, render
 from .models import DokumenPPID, UnitKerja, KategoriInformasi
 
 
+def _get_sftp_connection():
+    """Buat koneksi SFTP dan kembalikan (transport, sftp)."""
+    host = config('SFTP_HOST')
+    port = config('SFTP_PORT', default=22, cast=int)
+    username = config('SFTP_USERNAME')
+    password = config('SFTP_PASSWORD')
+    transport = paramiko.Transport((host, port))
+    transport.connect(username=username, password=password)
+    sftp = paramiko.SFTPClient.from_transport(transport)
+    return transport, sftp
+
+
+def _sftp_mkdir_p(sftp, remote_path):
+    """Buat folder secara rekursif di SFTP (seperti mkdir -p)."""
+    dirs_to_create = []
+    path = remote_path
+    while True:
+        try:
+            sftp.stat(path)
+            break  # folder sudah ada
+        except IOError:
+            dirs_to_create.append(path)
+            path = "/".join(path.rstrip("/").rsplit("/", 1)[:-1]) or "/"
+            if path == "/":
+                break
+    for d in reversed(dirs_to_create):
+        try:
+            sftp.mkdir(d)
+        except IOError:
+            pass  # mungkin sudah ada (race condition)
+
+
 def document_list(request):
     qs = DokumenPPID.objects.select_related("unit", "kategori_informasi").all()
 
