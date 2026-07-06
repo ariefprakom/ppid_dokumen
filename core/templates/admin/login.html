@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PPID UIN Ar-Raniry</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a5632 0%, #0d2b1a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .login-container {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 420px;
+            overflow: hidden;
+        }
+        .login-header {
+            background: linear-gradient(135deg, #1a5632, #237a47);
+            padding: 30px;
+            text-align: center;
+            color: #fff;
+        }
+        .login-header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .login-header p {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        .login-body {
+            padding: 30px;
+        }
+        .errornote, .errorlist {
+            background: #fdeaea;
+            color: #c0392b;
+            padding: 10px 14px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+        }
+        .form-group {
+            margin-bottom: 18px;
+        }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #333;
+            margin-bottom: 6px;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #1a5632;
+            box-shadow: 0 0 0 3px rgba(26, 86, 50, 0.1);
+        }
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            background: #1a5632;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-login:hover {
+            background: #144427;
+        }
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 24px 0;
+            color: #aaa;
+            font-size: 0.8rem;
+        }
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .divider span { padding: 0 12px; }
+        .btn-sso {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            color: #fff;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-align: center;
+            transition: opacity 0.2s;
+        }
+        .btn-sso:hover { opacity: 0.9; }
+        .login-footer {
+            text-align: center;
+            padding: 16px 30px;
+            background: #f9f9f9;
+            border-top: 1px solid #eee;
+            font-size: 0.75rem;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-header">
+        <h1>PPID UIN Ar-Raniry</h1>
+        <p>Sistem Manajemen Dokumen</p>
+    </div>
+
+    <div class="login-body">
+        {% if form.errors %}
+        <div class="errornote">
+            Username atau password salah. Silakan coba lagi.
+        </div>
+        {% endif %}
+
+        {% if user.is_authenticated %}
+        <div class="errornote">
+            Anda login sebagai <strong>{{ user.username }}</strong>, tetapi tidak memiliki akses ke halaman ini.
+        </div>
+        {% endif %}
+
+        <form method="post" action="{% url 'admin:login' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_username">Username</label>
+                <input type="text" name="username" id="id_username" autofocus autocapitalize="none" autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label for="id_password">Password</label>
+                <input type="password" name="password" id="id_password" autocomplete="current-password">
+            </div>
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="btn-login">Log in</button>
+        </form>
+
+        {% if oidc_enabled %}
+        <div class="divider"><span>atau</span></div>
+        <a href="{% url 'oidc_authentication_init' %}" class="btn-sso">
+            🔐 Login dengan Keycloak SSO
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="login-footer">
+        &copy; PPID UIN Ar-Raniry Banda Aceh
+    </div>
+</div>
+
+</body>
+</html>

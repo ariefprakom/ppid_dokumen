@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'mozilla_django_oidc',
 ]
 
 MIDDLEWARE = [
@@ -50,6 +52,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.OIDCSessionMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -57,13 +60,14 @@ ROOT_URLCONF = 'core.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'core' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'core.context_processors.oidc_settings',
             ],
         },
     },
@@ -129,3 +133,52 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+# =============================================================================
+# Keycloak OIDC Configuration (mozilla-django-oidc)
+# =============================================================================
+
+OIDC_ENABLED = config('OIDC_ENABLED', default=False, cast=bool)
+
+# Keycloak server URLs (harus selalu didefinisikan karena mozilla-django-oidc
+# membaca settings saat import, meski OIDC belum aktif)
+OIDC_KEYCLOAK_URL = config('OIDC_KEYCLOAK_URL', default='https://sso.example.com').rstrip('/')
+OIDC_KEYCLOAK_REALM = config('OIDC_KEYCLOAK_REALM', default='master')
+_OIDC_BASE = f"{OIDC_KEYCLOAK_URL}/realms/{OIDC_KEYCLOAK_REALM}/protocol/openid-connect"
+
+OIDC_OP_AUTHORIZATION_ENDPOINT = f"{_OIDC_BASE}/auth"
+OIDC_OP_TOKEN_ENDPOINT = f"{_OIDC_BASE}/token"
+OIDC_OP_USER_ENDPOINT = f"{_OIDC_BASE}/userinfo"
+OIDC_OP_JWKS_ENDPOINT = f"{OIDC_KEYCLOAK_URL}/realms/{OIDC_KEYCLOAK_REALM}/protocol/openid-connect/certs"
+OIDC_OP_LOGOUT_ENDPOINT = f"{_OIDC_BASE}/logout"
+
+# Client credentials (dari Keycloak client)
+OIDC_RP_CLIENT_ID = config('OIDC_RP_CLIENT_ID', default='ppid-django')
+OIDC_RP_CLIENT_SECRET = config('OIDC_RP_CLIENT_SECRET', default='')
+
+# Algorithm & scopes
+OIDC_RP_SIGN_ALGO = "RS256"
+OIDC_RP_SCOPES = "openid email profile"
+
+# Redirect setelah login/logout
+LOGIN_REDIRECT_URL = "/admin/"
+LOGOUT_REDIRECT_URL = "/admin/"
+
+# Otomatis buat user Django saat pertama login via Keycloak
+OIDC_CREATE_USER = True
+
+# Session refresh (cek token masih valid)
+OIDC_RENEW_ID_TOKEN_EXPIRY_SECONDS = 300  # 5 menit
+
+# Role mapping: nama role/group Keycloak yang akan dijadikan staff/superuser
+OIDC_STAFF_ROLES = config('OIDC_STAFF_ROLES', default='ppid-staff', cast=Csv())
+OIDC_SUPERUSER_ROLES = config('OIDC_SUPERUSER_ROLES', default='ppid-admin', cast=Csv())
+
+if OIDC_ENABLED:
+    AUTHENTICATION_BACKENDS = [
+        'core.oidc.KeycloakOIDCAuthenticationBackend',
+        'django.contrib.auth.backends.ModelBackend',
+    ]
+
+    # Override admin logout agar logout dari Keycloak juga
+    LOGOUT_REDIRECT_URL = "/oidc/logout/"
