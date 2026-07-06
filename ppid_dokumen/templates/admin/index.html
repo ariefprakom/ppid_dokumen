@@ -1,0 +1,19 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+{{ block.super }}
+
+<div id="cdn-actions" class="module">
+    <table>
+        <caption><a href="{% url 'admin:cdn_upload' %}" class="section">Upload CDN</a></caption>
+        <tr>
+            <th scope="row">
+                <a href="{% url 'admin:cdn_upload' %}">📤 Upload File ke CDN</a>
+            </th>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+        </tr>
+    </table>
+</div>
+{% endblock %}

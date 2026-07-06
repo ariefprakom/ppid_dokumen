@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.shortcuts import render, redirect
-from django.urls import path
+from django.urls import path, reverse
 from django.contrib import messages
 from django.http import JsonResponse
+from django.utils.html import format_html
 from decouple import config
 
 from .models import UnitKerja, KategoriInformasi, DokumenPPID, Organisasi, UnitOrganisasi
@@ -10,35 +11,39 @@ from .forms import CDNUploadForm
 from .views import _get_sftp_connection, _sftp_mkdir_p
 
 
-@admin.register(UnitKerja)
-class UnitKerjaAdmin(admin.ModelAdmin):
-    list_display = ["nama"]
-    search_fields = ["nama"]
+# ============================================================
+# Sembunyikan model yang tidak perlu tampil di admin
+# ============================================================
+
+# Tetap register tapi tidak tampil di index
+class HiddenModelAdmin(admin.ModelAdmin):
+    def has_module_permission(self, request):
+        return False
 
 
-@admin.register(KategoriInformasi)
-class KategoriInformasiAdmin(admin.ModelAdmin):
-    list_display = ["nama"]
-    search_fields = ["nama"]
+admin.site.register(UnitKerja, HiddenModelAdmin)
+admin.site.register(KategoriInformasi, HiddenModelAdmin)
+admin.site.register(DokumenPPID, HiddenModelAdmin)
 
 
-@admin.register(Organisasi)
-class OrganisasiAdmin(admin.ModelAdmin):
-    list_display = ["nama", "deskripsi", "jumlah_unit"]
-    search_fields = ["nama", "deskripsi"]
-
-    @admin.display(description="Jumlah Unit")
-    def jumlah_unit(self, obj):
-        return obj.units.count()
-
+# ============================================================
+# Model yang tampil: Organisasi & Unit Organisasi
+# ============================================================
 
 class UnitOrganisasiInline(admin.TabularInline):
     model = UnitOrganisasi
     extra = 1
 
 
-# Tambahkan inline ke OrganisasiAdmin
-OrganisasiAdmin.inlines = [UnitOrganisasiInline]
+@admin.register(Organisasi)
+class OrganisasiAdmin(admin.ModelAdmin):
+    list_display = ["nama", "deskripsi", "jumlah_unit"]
+    search_fields = ["nama", "deskripsi"]
+    inlines = [UnitOrganisasiInline]
+
+    @admin.display(description="Jumlah Unit")
+    def jumlah_unit(self, obj):
+        return obj.units.count()
 
 
 @admin.register(UnitOrganisasi)
@@ -46,40 +51,6 @@ class UnitOrganisasiAdmin(admin.ModelAdmin):
     list_display = ["nama", "organisasi", "deskripsi"]
     list_filter = ["organisasi"]
     search_fields = ["nama", "deskripsi"]
-
-
-@admin.register(DokumenPPID)
-class DokumenPPIDAdmin(admin.ModelAdmin):
-    list_display = [
-        "tentang", "unit", "kategori_informasi", "tahun",
-        "klasifikasi", "status", "sumber_file", "tanggal_terbit", "diunduh",
-    ]
-    list_filter = ["unit", "kategori_informasi", "klasifikasi", "status", "tahun"]
-    search_fields = ["tentang", "detail", "nomor", "penulis"]
-    date_hierarchy = "tanggal_terbit"
-    fieldsets = (
-        (None, {
-            "fields": (
-                "unit", "kategori_informasi", "nomor", "tahun",
-                "tentang", "detail", "klasifikasi", "status",
-            )
-        }),
-        ("Sumber Dokumen (pilih salah satu)", {
-            "description": "Upload file <strong>ATAU</strong> isi URL file eksternal. Tidak boleh keduanya kosong atau keduanya terisi.",
-            "fields": ("file", "file_url"),
-        }),
-        ("Metadata", {
-            "fields": ("penulis", "tanggal_terbit", "diunduh"),
-        }),
-    )
-
-    @admin.display(description="Sumber")
-    def sumber_file(self, obj):
-        if obj.file_url:
-            return "🔗 Eksternal"
-        if obj.file:
-            return "📄 Upload"
-        return "-"
 
 
 # ============================================================
@@ -199,6 +170,16 @@ class CDNUploadAdminView:
             "unit_list": unit_list,
         }
         return render(request, "admin/cdn_upload.html", context)
+
+
+# ============================================================
+# Custom admin index template: tambah link Upload CDN
+# ============================================================
+
+# Override admin site header & tambah custom link
+admin.site.site_header = "PPID UIN Ar-Raniry"
+admin.site.site_title = "PPID Admin"
+admin.site.index_title = "Administrasi Data"
 
 
 # Daftarkan URL custom ke admin
