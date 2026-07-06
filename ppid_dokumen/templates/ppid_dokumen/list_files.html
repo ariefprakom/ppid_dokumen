@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Daftar File</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        ul { list-style: none; padding: 0; }
+        li { margin: 6px 0; }
+        .folder { font-weight: bold; color: darkblue; }
+        .file { color: darkgreen; }
+        .breadcrumbs a { text-decoration: none; color: #444; }
+        .breadcrumbs span { margin: 0 5px; }
+    </style>
+</head>
+<body>
+    <h2>📂 Isi Folder</h2>
+
+    {% if breadcrumbs %}
+        <div class="breadcrumbs">
+            <a href="?">Root</a>
+            {% for bc in breadcrumbs %}
+                <span>/</span><a href="{{ bc.url }}">{{ bc.name }}</a>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <ul>
+        {% for item in items %}
+            <li>
+                {% if item.is_dir %}
+                    <span class="folder">📂 <a href="{{ item.url }}">{{ item.name }}/</a></span>
+                {% else %}
+                    <span class="file">📄 <a href="{{ item.url }}" target="_blank">{{ item.name }}</a></span>
+                {% endif %}
+            </li>
+        {% empty %}
+            <li><em>Tidak ada file atau folder.</em></li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
