@@ -138,7 +138,10 @@ def list_sftp_files_html(request):
 
 
 def _sftp_walk(sftp, remote_path, base_url, root_path):
-    """Rekursif membaca semua file dari SFTP."""
+    """Rekursif membaca semua file dari SFTP.
+    
+    Struktur folder: root / tahun / organisasi / unit_organisasi / file
+    """
     files = []
     try:
         entries = sftp.listdir_attr(remote_path)
@@ -152,13 +155,18 @@ def _sftp_walk(sftp, remote_path, base_url, root_path):
         else:
             # Hitung relative path dari root
             rel = entry_path[len(root_path):].lstrip("/")
-            # Folder = bagian path sebelum filename
-            folder = "/".join(rel.split("/")[:-1]) if "/" in rel else ""
+            parts = rel.split("/")
+            # Parse struktur: tahun/organisasi/unit_organisasi/filename
+            tahun = parts[0] if len(parts) > 1 else ""
+            organisasi = parts[1] if len(parts) > 2 else ""
+            unit_organisasi = parts[2] if len(parts) > 3 else ""
             # Ekstensi file
             ext = entry.filename.rsplit(".", 1)[-1].lower() if "." in entry.filename else ""
             files.append({
                 "name": entry.filename,
-                "folder": folder,
+                "tahun": tahun,
+                "organisasi": organisasi,
+                "unit_organisasi": unit_organisasi,
                 "path": rel,
                 "url": f"{base_url}/{rel}",
                 "size": entry.st_size,
@@ -168,8 +176,7 @@ def _sftp_walk(sftp, remote_path, base_url, root_path):
 
 
 def cdn_files_table(request):
-    """View tabel semua file CDN dengan filter (folder, ekstensi, kata kunci)."""
-    import time
+    """View tabel semua file CDN dengan filter (tahun, organisasi, unit organisasi)."""
 
     host = config('SFTP_HOST')
     port = config('SFTP_PORT', default=22, cast=int)
@@ -184,38 +191,64 @@ def cdn_files_table(request):
     sftp = paramiko.SFTPClient.from_transport(transport)
 
     try:
+        # Ambil semua folder level-1 langsung (termasuk yang kosong)
+        top_folders = []
+        for entry in sftp.listdir_attr(root_path):
+            if stat.S_ISDIR(entry.st_mode):
+                top_folders.append(entry.filename)
+
         all_files = _sftp_walk(sftp, root_path, base_url, root_path)
     finally:
         sftp.close()
         transport.close()
 
-    # Kumpulkan opsi filter
-    folder_set = sorted(set(f["folder"] for f in all_files if f["folder"]))
-    ext_set = sorted(set(f["ext"] for f in all_files if f["ext"]))
+    # Kumpulkan opsi filter — tahun dari folder level-1 (bukan hanya dari file)
+    tahun_set = sorted(top_folders, reverse=True)
+    organisasi_set = sorted(set(f["organisasi"] for f in all_files if f["organisasi"]))
 
     # Ambil filter dari query string
-    filter_folder = request.GET.get("folder", "")
-    filter_ext = request.GET.get("ext", "")
+    filter_tahun = request.GET.get("tahun", "")
+    filter_organisasi = request.GET.get("organisasi", "")
+    filter_unit = request.GET.get("unit", "")
     filter_q = request.GET.get("q", "")
 
     # Terapkan filter
     filtered = all_files
-    if filter_folder:
-        filtered = [f for f in filtered if f["folder"] == filter_folder]
-    if filter_ext:
-        filtered = [f for f in filtered if f["ext"] == filter_ext]
+    if filter_tahun:
+        filtered = [f for f in filtered if f["tahun"] == filter_tahun]
+    if filter_organisasi:
+        filtered = [f for f in filtered if f["organisasi"] == filter_organisasi]
+    if filter_unit:
+        filtered = [f for f in filtered if f["unit_organisasi"] == filter_unit]
     if filter_q:
         q_lower = filter_q.lower()
         filtered = [f for f in filtered if q_lower in f["name"].lower()]
 
+    # Organisasi yang tersedia setelah filter tahun diterapkan
+    filtered_organisasi_set = sorted(set(
+        f["organisasi"] for f in all_files
+        if f["organisasi"]
+        and (not filter_tahun or f["tahun"] == filter_tahun)
+    ))
+
+    # Unit organisasi yang tersedia setelah filter tahun & organisasi diterapkan
+    filtered_unit_set = sorted(set(
+        f["unit_organisasi"] for f in all_files
+        if f["unit_organisasi"]
+        and (not filter_tahun or f["tahun"] == filter_tahun)
+        and (not filter_organisasi or f["organisasi"] == filter_organisasi)
+    ))
+
     context = {
         "files": filtered,
         "total_files": len(all_files),
-        "folder_list": folder_set,
-        "ext_list": ext_set,
+        "tahun_list": tahun_set,
+        "organisasi_list": filtered_organisasi_set,
+        "unit_list": filtered_unit_set,
         "filter_values": {
-            "folder": filter_folder,
-            "ext": filter_ext,
+            "tahun": filter_tahun,
+            "organisasi": filter_organisasi,
+            "unit": filter_unit,
             "q": filter_q,
         },
     }

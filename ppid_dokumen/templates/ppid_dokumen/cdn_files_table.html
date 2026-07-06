@@ -136,26 +136,35 @@
         <div class="card-body">
             <form method="get">
                 <div class="row g-3">
-                    <div class="col-md-4">
-                        <label for="folder" class="form-label fw-semibold">Folder</label>
-                        <select name="folder" id="folder" class="form-select">
-                            <option value="">-- Semua Folder --</option>
-                            {% for f in folder_list %}
-                                <option value="{{ f }}" {% if filter_values.folder == f %}selected{% endif %}>{{ f }}</option>
+                    <div class="col-md-3">
+                        <label for="tahun" class="form-label fw-semibold">Tahun</label>
+                        <select name="tahun" id="tahun" class="form-select">
+                            <option value="">-- Semua Tahun --</option>
+                            {% for t in tahun_list %}
+                                <option value="{{ t }}" {% if filter_values.tahun == t %}selected{% endif %}>{{ t }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label for="ext" class="form-label fw-semibold">Tipe File</label>
-                        <select name="ext" id="ext" class="form-select">
-                            <option value="">-- Semua Tipe --</option>
-                            {% for e in ext_list %}
-                                <option value="{{ e }}" {% if filter_values.ext == e %}selected{% endif %}>.{{ e }}</option>
+                    <div class="col-md-3">
+                        <label for="organisasi" class="form-label fw-semibold">Organisasi</label>
+                        <select name="organisasi" id="organisasi" class="form-select">
+                            <option value="">-- Semua Organisasi --</option>
+                            {% for o in organisasi_list %}
+                                <option value="{{ o }}" {% if filter_values.organisasi == o %}selected{% endif %}>{{ o }}</option>
                             {% endfor %}
                         </select>
                     </div>
-                    <div class="col-md-4">
-                        <label for="q" class="form-label fw-semibold">Kata Kunci</label>
+                    <div class="col-md-3">
+                        <label for="unit" class="form-label fw-semibold">Unit Organisasi</label>
+                        <select name="unit" id="unit" class="form-select">
+                            <option value="">-- Semua Unit --</option>
+                            {% for u in unit_list %}
+                                <option value="{{ u }}" {% if filter_values.unit == u %}selected{% endif %}>{{ u }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="q" class="form-label fw-semibold">Nama Dokumen</label>
                         <input type="text" name="q" id="q" class="form-control" value="{{ filter_values.q }}" placeholder="Cari nama file...">
                     </div>
                 </div>
@@ -193,9 +202,10 @@
                     <thead>
                         <tr>
                             <th>No.</th>
-                            <th>Nama File</th>
-                            <th>Folder</th>
-                            <th>Tipe</th>
+                            <th>Tahun</th>
+                            <th>Organisasi</th>
+                            <th>Unit Organisasi</th>
+                            <th>Dokumen</th>
                             <th>Ukuran</th>
                             <th>Aksi</th>
                         </tr>
@@ -204,9 +214,10 @@
                         {% for f in files %}
                         <tr>
                             <td>{{ forloop.counter }}</td>
+                            <td>{{ f.tahun }}</td>
+                            <td>{{ f.organisasi }}</td>
+                            <td>{{ f.unit_organisasi }}</td>
                             <td><strong>{{ f.name }}</strong></td>
-                            <td><span class="text-muted">{{ f.folder|default:"/" }}</span></td>
-                            <td><span class="badge bg-info ext-badge">.{{ f.ext }}</span></td>
                             <td>{{ f.size|filesizeformat }}</td>
                             <td>
                                 <a href="{{ f.url }}" class="btn btn-sm btn-ppid btn-download" target="_blank">
