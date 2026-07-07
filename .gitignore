@@ -12,6 +12,7 @@ build/
 # Django
 db.sqlite3
 *.log
+staticfiles/
 
 # IDE
 .vscode/
