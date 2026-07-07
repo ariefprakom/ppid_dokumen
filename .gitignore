@@ -26,4 +26,4 @@ Thumbs.db
 .env
 
 # alur deploy
-alur_deploy.txt
+alur*deploy.txt
