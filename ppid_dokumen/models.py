@@ -148,3 +148,36 @@ class DokumenPPID(models.Model):
 
     def get_absolute_url(self):
         return reverse("ppid_dokumen:detail", kwargs={"pk": self.pk})
+
+
+class CDNActivityLog(models.Model):
+    """Log aktivitas operasi file di CDN (upload, rename, hapus)."""
+
+    ACTION_CHOICES = [
+        ("upload", "Upload"),
+        ("rename", "Rename"),
+        ("delete", "Hapus"),
+    ]
+
+    user = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="cdn_logs",
+        verbose_name="User",
+    )
+    action = models.CharField("Aksi", max_length=10, choices=ACTION_CHOICES)
+    file_path = models.CharField("Path File", max_length=500)
+    file_name = models.CharField("Nama File", max_length=255)
+    detail = models.TextField(
+        "Detail", blank=True,
+        help_text="Info tambahan, misal: nama baru saat rename, jumlah file saat upload"
+    )
+    timestamp = models.DateTimeField("Waktu", auto_now_add=True)
+    ip_address = models.GenericIPAddressField("IP Address", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Log Aktivitas CDN"
+        verbose_name_plural = "Log Aktivitas CDN"
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"[{self.get_action_display()}] {self.file_name} - {self.user} ({self.timestamp:%Y-%m-%d %H:%M})"

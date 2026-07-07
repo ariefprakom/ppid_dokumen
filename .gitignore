@@ -24,3 +24,6 @@ Thumbs.db
 
 # Secrets (jangan push kredensial)
 .env
+
+# alur deploy
+alur_deploy.txt

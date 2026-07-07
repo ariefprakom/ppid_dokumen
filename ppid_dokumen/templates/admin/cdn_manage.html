@@ -1,0 +1,269 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Kelola File CDN{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; Kelola File CDN
+</div>
+{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<style>
+    .cdn-manage { max-width: 1100px; margin: 0 auto; }
+    .cdn-manage h2 { margin-bottom: 20px; }
+    .filter-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-row select, .filter-row input {
+        padding: 8px 12px; border: 1px solid #555; border-radius: 4px;
+        background: #2a2a2a; color: #eee; min-width: 160px;
+    }
+    .filter-row button {
+        padding: 8px 18px; background: #417690; color: #fff;
+        border: none; border-radius: 4px; cursor: pointer;
+    }
+    .filter-row button:hover { background: #205067; }
+    .filter-row .btn-reset {
+        background: #555; color: #eee;
+    }
+    table#cdn-table { width: 100%; font-size: 13px; }
+    table#cdn-table th { white-space: nowrap; }
+    .btn-action {
+        padding: 4px 10px; border: none; border-radius: 3px;
+        cursor: pointer; font-size: 12px; margin: 0 2px;
+    }
+    .btn-rename { background: #f0ad4e; color: #000; }
+    .btn-rename:hover { background: #ec971f; }
+    .btn-delete { background: #d9534f; color: #fff; }
+    .btn-delete:hover { background: #c9302c; }
+    .btn-download-sm { background: #5cb85c; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 3px; font-size: 12px; }
+    .btn-download-sm:hover { background: #449d44; color: #fff; }
+
+    /* Modal */
+    .modal-overlay {
+        display: none; position: fixed; top: 0; left: 0;
+        width: 100%; height: 100%; background: rgba(0,0,0,0.6);
+        z-index: 9999; justify-content: center; align-items: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+        background: #333; border-radius: 8px; padding: 24px;
+        width: 100%; max-width: 450px; color: #eee;
+    }
+    .modal-box h3 { margin-top: 0; margin-bottom: 16px; }
+    .modal-box input {
+        width: 100%; padding: 10px; border: 1px solid #555;
+        border-radius: 4px; background: #2a2a2a; color: #eee;
+        font-size: 14px; margin-bottom: 16px;
+    }
+    .modal-box .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+    .modal-box .btn-modal {
+        padding: 8px 18px; border: none; border-radius: 4px;
+        cursor: pointer; font-size: 14px;
+    }
+    .btn-modal-cancel { background: #555; color: #eee; }
+    .btn-modal-confirm { background: #417690; color: #fff; }
+    .btn-modal-confirm:hover { background: #205067; }
+
+    .toast-msg {
+        position: fixed; bottom: 20px; right: 20px;
+        padding: 12px 20px; border-radius: 6px;
+        color: #fff; font-size: 14px; z-index: 10000;
+        display: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .toast-success { background: #2e7d32; }
+    .toast-error { background: #c62828; }
+
+    .stats-info {
+        margin-bottom: 16px; padding: 10px 14px;
+        background: #1a3a4a; border: 1px solid #2980b9;
+        border-radius: 4px; color: #d6eaf8; font-size: 13px;
+    }
+</style>
+
+<div class="cdn-manage">
+    <h2>🗂️ Kelola File CDN</h2>
+
+    <div class="stats-info">
+        <strong>ℹ️</strong> Total <strong>{{ total_files }}</strong> file di CDN.
+        Gunakan filter untuk mempersempit, lalu gunakan tombol aksi untuk menghapus atau me-rename file.
+    </div>
+
+    <form method="get" class="filter-row">
+        <select name="tahun">
+            <option value="">-- Tahun --</option>
+            {% for t in tahun_list %}
+                <option value="{{ t }}" {% if filter_values.tahun == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+        </select>
+        <select name="organisasi">
+            <option value="">-- Organisasi --</option>
+            {% for o in organisasi_list %}
+                <option value="{{ o }}" {% if filter_values.organisasi == o %}selected{% endif %}>{{ o }}</option>
+            {% endfor %}
+        </select>
+        <select name="unit">
+            <option value="">-- Unit --</option>
+            {% for u in unit_list %}
+                <option value="{{ u }}" {% if filter_values.unit == u %}selected{% endif %}>{{ u }}</option>
+            {% endfor %}
+        </select>
+        <input type="text" name="q" placeholder="Cari nama file..." value="{{ filter_values.q }}">
+        <button type="submit">Filter</button>
+        <a href="{% url 'admin:cdn_manage' %}" class="btn-reset" style="padding:8px 18px; text-decoration:none; border-radius:4px;">Reset</a>
+    </form>
+
+    {% if not files %}
+    <p style="color: #999; text-align: center; padding: 40px 0;">
+        Tidak ada file ditemukan. Ubah filter atau upload file terlebih dahulu.
+    </p>
+    {% else %}
+    <table id="cdn-table" class="display">
+        <thead>
+            <tr>
+                <th>No.</th>
+                <th>Tahun</th>
+                <th>Organisasi</th>
+                <th>Unit</th>
+                <th>Nama File</th>
+                <th>Ukuran</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in files %}
+            <tr id="row-{{ forloop.counter0 }}">
+                <td>{{ forloop.counter }}</td>
+                <td>{{ f.tahun }}</td>
+                <td>{{ f.organisasi }}</td>
+                <td>{{ f.unit_organisasi }}</td>
+                <td class="file-name">{{ f.name }}</td>
+                <td>{{ f.size|filesizeformat }}</td>
+                <td>
+                    <a href="{{ f.url }}" class="btn-download-sm" target="_blank">📥</a>
+                    <button class="btn-action btn-rename" onclick="openRename('{{ f.path|escapejs }}', '{{ f.name|escapejs }}')">✏️ Rename</button>
+                    <button class="btn-action btn-delete" onclick="confirmDelete('{{ f.path|escapejs }}', '{{ f.name|escapejs }}', this)">🗑️ Hapus</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+
+<!-- Rename Modal -->
+<div class="modal-overlay" id="rename-modal">
+    <div class="modal-box">
+        <h3>✏️ Rename File</h3>
+        <p style="font-size: 12px; color: #aaa; margin-bottom: 8px;">File: <span id="rename-old-name" style="color: #eee;"></span></p>
+        <input type="text" id="rename-new-name" placeholder="Nama file baru (dengan ekstensi)">
+        <div class="modal-actions">
+            <button class="btn-modal btn-modal-cancel" onclick="closeRename()">Batal</button>
+            <button class="btn-modal btn-modal-confirm" onclick="doRename()">Rename</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-msg" id="toast"></div>
+
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script>
+$(document).ready(function() {
+    if ($('#cdn-table').length) {
+        $('#cdn-table').DataTable({
+            pageLength: 50,
+            order: [[1, 'desc'], [2, 'asc']],
+            language: {
+                search: "Cari:",
+                info: "Menampilkan _START_-_END_ dari _TOTAL_ file",
+                paginate: { previous: "‹", next: "›" }
+            }
+        });
+    }
+});
+
+const CSRF_TOKEN = '{{ csrf_token }}';
+let renamePath = '';
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast-msg toast-' + type;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 4000);
+}
+
+function confirmDelete(path, name, btn) {
+    if (!confirm('Yakin ingin menghapus file:\n\n' + name + '\n\nFile yang dihapus TIDAK bisa dikembalikan!')) return;
+
+    fetch('{% url "ppid_dokumen:cdn_file_delete" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({ path: path })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Hapus baris dari tabel
+            const row = btn.closest('tr');
+            const table = $('#cdn-table').DataTable();
+            table.row(row).remove().draw();
+        } else {
+            showToast(data.error, 'error');
+        }
+    })
+    .catch(e => showToast('Terjadi kesalahan: ' + e, 'error'));
+}
+
+function openRename(path, name) {
+    renamePath = path;
+    document.getElementById('rename-old-name').textContent = name;
+    document.getElementById('rename-new-name').value = name;
+    document.getElementById('rename-modal').classList.add('active');
+    document.getElementById('rename-new-name').focus();
+    document.getElementById('rename-new-name').select();
+}
+
+function closeRename() {
+    document.getElementById('rename-modal').classList.remove('active');
+    renamePath = '';
+}
+
+function doRename() {
+    const newName = document.getElementById('rename-new-name').value.trim();
+    if (!newName) { showToast('Nama file tidak boleh kosong.', 'error'); return; }
+
+    fetch('{% url "ppid_dokumen:cdn_file_rename" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({ path: renamePath, new_name: newName })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeRename();
+            // Reload halaman untuk refresh data
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error, 'error');
+        }
+    })
+    .catch(e => showToast('Terjadi kesalahan: ' + e, 'error'));
+}
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeRename();
+});
+</script>
+{% endblock %}

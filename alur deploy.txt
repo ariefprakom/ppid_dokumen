@@ -32,3 +32,7 @@ docker run -d \
   -e OIDC_STAFF_ROLES=ppid-staff \
   -e OIDC_SUPERUSER_ROLES=ppid-admin \
   ariefprakom/ppid-dokumen:latest
+
+  ############# Matikan fitur rename/hapus file cdn ##########
+  - ppid_dokumen > templates > admin > index.html
+  - comment url admin:cdn_manage

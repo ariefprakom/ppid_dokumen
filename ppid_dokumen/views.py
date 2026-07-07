@@ -1,10 +1,32 @@
 import paramiko, stat
 from decouple import config
 from django.db.models import Q
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.views.decorators.http import require_POST
+from django.contrib.admin.views.decorators import staff_member_required
 
-from .models import DokumenPPID, UnitKerja, KategoriInformasi
+from .models import DokumenPPID, UnitKerja, KategoriInformasi, CDNActivityLog
+
+
+def _get_client_ip(request):
+    """Ambil IP address client dari request."""
+    x_forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded:
+        return x_forwarded.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
+
+
+def _log_cdn_activity(request, action, file_path, file_name, detail=""):
+    """Catat aktivitas CDN ke database."""
+    CDNActivityLog.objects.create(
+        user=request.user if request.user.is_authenticated else None,
+        action=action,
+        file_path=file_path,
+        file_name=file_name,
+        detail=detail,
+        ip_address=_get_client_ip(request),
+    )
 
 
 def _get_sftp_connection():
@@ -285,3 +307,116 @@ def cdn_files_table(request):
         },
     }
     return render(request, "ppid_dokumen/cdn_files_table.html", context)
+
+
+# ============================================================
+# CDN File Management: Delete & Rename
+# ============================================================
+
+@staff_member_required
+@require_POST
+def cdn_file_delete(request):
+    """Hapus file dari CDN via SFTP."""
+    import json
+    root_path = config('CDN_ROOT_PATH')
+
+    try:
+        body = json.loads(request.body)
+        file_path = body.get("path", "").strip()
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({"success": False, "error": "Request tidak valid."}, status=400)
+
+    if not file_path:
+        return JsonResponse({"success": False, "error": "Path file tidak boleh kosong."}, status=400)
+
+    # Keamanan: pastikan path tidak keluar dari root
+    remote_path = f"{root_path}/{file_path}"
+    if ".." in file_path or not remote_path.startswith(root_path):
+        return JsonResponse({"success": False, "error": "Path tidak valid."}, status=400)
+
+    try:
+        transport, sftp = _get_sftp_connection()
+        try:
+            sftp.remove(remote_path)
+        finally:
+            sftp.close()
+            transport.close()
+    except FileNotFoundError:
+        return JsonResponse({"success": False, "error": "File tidak ditemukan."}, status=404)
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Gagal menghapus: {e}"}, status=500)
+
+    # Log aktivitas
+    file_name = file_path.split("/")[-1]
+    _log_cdn_activity(request, "delete", file_path, file_name)
+
+    return JsonResponse({"success": True, "message": f"File '{file_path}' berhasil dihapus."})
+
+
+@staff_member_required
+@require_POST
+def cdn_file_rename(request):
+    """Rename file di CDN via SFTP."""
+    import json
+    root_path = config('CDN_ROOT_PATH')
+
+    try:
+        body = json.loads(request.body)
+        old_path = body.get("path", "").strip()
+        new_name = body.get("new_name", "").strip()
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({"success": False, "error": "Request tidak valid."}, status=400)
+
+    if not old_path or not new_name:
+        return JsonResponse({"success": False, "error": "Path dan nama baru harus diisi."}, status=400)
+
+    # Validasi nama file baru (tidak boleh mengandung / atau ..)
+    if "/" in new_name or "\\" in new_name or ".." in new_name:
+        return JsonResponse({"success": False, "error": "Nama file tidak valid."}, status=400)
+
+    # Keamanan: pastikan path tidak keluar dari root
+    remote_old = f"{root_path}/{old_path}"
+    if ".." in old_path or not remote_old.startswith(root_path):
+        return JsonResponse({"success": False, "error": "Path tidak valid."}, status=400)
+
+    # Bangun path baru (ganti filename, folder tetap sama)
+    folder = "/".join(old_path.split("/")[:-1])
+    new_path = f"{folder}/{new_name}" if folder else new_name
+    remote_new = f"{root_path}/{new_path}"
+
+    try:
+        transport, sftp = _get_sftp_connection()
+        try:
+            # Cek file lama ada
+            sftp.stat(remote_old)
+            # Cek file baru belum ada
+            try:
+                sftp.stat(remote_new)
+                return JsonResponse(
+                    {"success": False, "error": f"File '{new_name}' sudah ada di folder yang sama."},
+                    status=409
+                )
+            except FileNotFoundError:
+                pass  # OK, file baru belum ada
+            # Rename
+            sftp.rename(remote_old, remote_new)
+        finally:
+            sftp.close()
+            transport.close()
+    except FileNotFoundError:
+        return JsonResponse({"success": False, "error": "File sumber tidak ditemukan."}, status=404)
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Gagal rename: {e}"}, status=500)
+
+    # Log aktivitas
+    old_name = old_path.split("/")[-1]
+    _log_cdn_activity(
+        request, "rename", old_path, old_name,
+        detail=f"Rename: {old_name} → {new_name}"
+    )
+
+    return JsonResponse({
+        "success": True,
+        "message": f"File berhasil di-rename menjadi '{new_name}'.",
+        "new_path": new_path,
+    })
