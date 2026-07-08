@@ -44,6 +44,12 @@
     .btn-delete:hover { background: #c9302c; }
     .btn-download-sm { background: #5cb85c; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 3px; font-size: 12px; }
     .btn-download-sm:hover { background: #449d44; color: #fff; }
+    .jenis-select {
+        padding: 4px 6px; border: 1px solid #555; border-radius: 3px;
+        background: #2a2a2a; color: #eee; font-size: 12px; min-width: 130px;
+    }
+    .jenis-select.saved { border-color: #5cb85c; }
+    .jenis-saving { opacity: 0.5; pointer-events: none; }
 
     /* Modal */
     .modal-overlay {
@@ -132,6 +138,7 @@
                 <th>Organisasi</th>
                 <th>Unit</th>
                 <th>Nama File</th>
+                <th>Jenis Dokumen</th>
                 <th>Ukuran</th>
                 <th>Aksi</th>
             </tr>
@@ -144,6 +151,14 @@
                 <td>{{ f.organisasi }}</td>
                 <td>{{ f.unit_organisasi }}</td>
                 <td class="file-name">{{ f.name }}</td>
+                <td>
+                    <select class="jenis-select" onchange="setJenis(this, '{{ f.path|escapejs }}', '{{ f.name|escapejs }}', '{{ f.tahun|escapejs }}', '{{ f.organisasi|escapejs }}', '{{ f.unit_organisasi|escapejs }}')">
+                        <option value="">-- Pilih --</option>
+                        {% for jd in jenis_dokumen_list %}
+                            <option value="{{ jd.pk }}" {% if f.jenis_dokumen_id == jd.pk %}selected{% endif %}>{{ jd.nama }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
                 <td>{{ f.size|filesizeformat }}</td>
                 <td>
                     <a href="{{ f.url }}" class="btn-download-sm" target="_blank">📥</a>
@@ -265,5 +280,39 @@ function doRename() {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeRename();
 });
+
+function setJenis(selectEl, path, fileName, tahun, organisasi, unitOrganisasi) {
+    const jenisId = selectEl.value;
+    selectEl.classList.add('jenis-saving');
+    selectEl.classList.remove('saved');
+
+    fetch('{% url "ppid_dokumen:cdn_file_set_jenis" %}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
+        body: JSON.stringify({
+            path: path,
+            jenis_id: jenisId || null,
+            file_name: fileName,
+            tahun: tahun,
+            organisasi: organisasi,
+            unit_organisasi: unitOrganisasi
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        selectEl.classList.remove('jenis-saving');
+        if (data.success) {
+            selectEl.classList.add('saved');
+            showToast(data.message, 'success');
+            setTimeout(() => selectEl.classList.remove('saved'), 3000);
+        } else {
+            showToast(data.error, 'error');
+        }
+    })
+    .catch(e => {
+        selectEl.classList.remove('jenis-saving');
+        showToast('Terjadi kesalahan: ' + e, 'error');
+    });
+}
 </script>
 {% endblock %}

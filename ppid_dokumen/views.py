@@ -461,3 +461,75 @@ def cdn_file_rename(request):
         "message": f"File berhasil di-rename menjadi '{new_name}'.",
         "new_path": new_path,
     })
+
+
+@staff_member_required
+@require_POST
+def cdn_file_set_jenis(request):
+    """Set atau ubah jenis dokumen untuk file di CDN."""
+    import json
+    from .models import CDNFile as CDNFileModel, JenisDokumen, Organisasi, UnitOrganisasi
+
+    try:
+        body = json.loads(request.body)
+        file_path = body.get("path", "").strip()
+        jenis_id = body.get("jenis_id")  # bisa None/kosong untuk hapus jenis
+        file_name = body.get("file_name", "")
+        tahun = body.get("tahun", "")
+        organisasi_nama = body.get("organisasi", "")
+        unit_nama = body.get("unit_organisasi", "")
+    except (json.JSONDecodeError, AttributeError):
+        return JsonResponse({"success": False, "error": "Request tidak valid."}, status=400)
+
+    if not file_path:
+        return JsonResponse({"success": False, "error": "Path file tidak boleh kosong."}, status=400)
+
+    try:
+        # Resolve jenis dokumen
+        jenis_obj = None
+        if jenis_id:
+            try:
+                jenis_obj = JenisDokumen.objects.get(pk=jenis_id)
+            except JenisDokumen.DoesNotExist:
+                return JsonResponse({"success": False, "error": "Jenis dokumen tidak ditemukan."}, status=404)
+
+        # Resolve organisasi & unit (best effort)
+        org_obj = None
+        if organisasi_nama:
+            org_obj = (
+                Organisasi.objects.filter(nama=organisasi_nama).first()
+                or Organisasi.objects.filter(nama__icontains=organisasi_nama).first()
+            )
+        unit_obj = None
+        if unit_nama:
+            if org_obj:
+                unit_obj = UnitOrganisasi.objects.filter(nama=unit_nama, organisasi=org_obj).first()
+            else:
+                unit_obj = UnitOrganisasi.objects.filter(nama=unit_nama).first()
+
+        # Cek apakah record sudah ada
+        existing = CDNFileModel.objects.filter(file_path=file_path).first()
+
+        if existing:
+            existing.jenis_dokumen = jenis_obj
+            existing.save(update_fields=["jenis_dokumen"])
+            cdn_file = existing
+        else:
+            cdn_file = CDNFileModel.objects.create(
+                file_path=file_path,
+                file_name=file_name or file_path.split("/")[-1],
+                jenis_dokumen=jenis_obj,
+                organisasi=org_obj,
+                unit_organisasi=unit_obj,
+                tahun=tahun,
+                uploaded_by=request.user,
+            )
+
+        jenis_nama = jenis_obj.nama if jenis_obj else "(tidak ada)"
+        return JsonResponse({
+            "success": True,
+            "message": f"Jenis dokumen '{cdn_file.file_name}' diset ke: {jenis_nama}",
+        })
+
+    except Exception as e:
+        return JsonResponse({"success": False, "error": f"Gagal menyimpan: {e}"}, status=500)

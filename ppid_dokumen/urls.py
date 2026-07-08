@@ -12,4 +12,5 @@ urlpatterns = [
     # CDN file management (admin only)
     path("cdn/delete/", views.cdn_file_delete, name="cdn_file_delete"),
     path("cdn/rename/", views.cdn_file_rename, name="cdn_file_rename"),
+    path("cdn/set-jenis/", views.cdn_file_set_jenis, name="cdn_file_set_jenis"),
 ]

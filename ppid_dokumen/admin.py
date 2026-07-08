@@ -326,6 +326,15 @@ class CDNManageAdminView:
             and (not filter_organisasi or f["organisasi"] == filter_organisasi)
         ))
 
+        # Ambil metadata jenis dokumen dari CDNFile
+        cdn_file_map = {}
+        cdn_records = CDNFile.objects.select_related("jenis_dokumen").all()
+        for rec in cdn_records:
+            cdn_file_map[rec.file_path] = rec.jenis_dokumen_id
+
+        for f in filtered:
+            f["jenis_dokumen_id"] = cdn_file_map.get(f["path"], "")
+
         context = {
             **admin.site.each_context(request),
             "title": "Kelola File CDN",
@@ -334,6 +343,7 @@ class CDNManageAdminView:
             "tahun_list": tahun_set,
             "organisasi_list": filtered_organisasi_set,
             "unit_list": filtered_unit_set,
+            "jenis_dokumen_list": JenisDokumen.objects.all(),
             "filter_values": {
                 "tahun": filter_tahun,
                 "organisasi": filter_organisasi,
