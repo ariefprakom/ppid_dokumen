@@ -1,13 +1,13 @@
-import datetime
 from django import forms
-from .models import Organisasi, UnitOrganisasi
+from .models import Organisasi, UnitOrganisasi, TahunDokumen
 
 
 class CDNUploadForm(forms.Form):
     """Form untuk upload file ke CDN via SFTP."""
-    tahun = forms.IntegerField(
-        initial=datetime.date.today().year,
-        help_text="Tahun folder tujuan",
+    tahun = forms.ModelChoiceField(
+        queryset=TahunDokumen.objects.all(),
+        empty_label="-- Pilih Tahun --",
+        help_text="Pilih tahun (folder level 1)",
     )
     organisasi = forms.ModelChoiceField(
         queryset=Organisasi.objects.all(),
@@ -25,13 +25,11 @@ class CDNUploadForm(forms.Form):
     )
 
     def clean_tahun(self):
-        value = self.cleaned_data["tahun"]
-        if value < 2000 or value > 2100:
-            raise forms.ValidationError("Tahun tidak valid.")
-        return str(value)
+        tahun_obj = self.cleaned_data["tahun"]
+        return str(tahun_obj.tahun)
 
     def clean_organisasi(self):
-        """Return pk sebagai string untuk kompatibilitas dengan view."""
+        """Return pk untuk kompatibilitas dengan view."""
         org = self.cleaned_data["organisasi"]
         return org.pk
 

@@ -30,6 +30,22 @@ class KategoriInformasi(models.Model):
         return self.nama
 
 
+class TahunDokumen(models.Model):
+    """Tahun untuk struktur folder CDN (level 1)."""
+    tahun = models.PositiveIntegerField(
+        "Tahun", unique=True,
+        help_text="Tahun folder di CDN, contoh: 2025, 2026"
+    )
+
+    class Meta:
+        verbose_name = "Tahun Dokumen"
+        verbose_name_plural = "Tahun Dokumen"
+        ordering = ["-tahun"]
+
+    def __str__(self):
+        return str(self.tahun)
+
+
 class Organisasi(models.Model):
     """Organisasi / bidang untuk struktur folder CDN (level 2)."""
     nama = models.CharField(

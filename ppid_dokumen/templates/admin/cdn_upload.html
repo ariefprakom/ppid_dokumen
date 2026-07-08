@@ -86,9 +86,10 @@
     <h2>📤 Upload File ke CDN Server</h2>
 
     <div class="info-box">
-        <strong>ℹ️ Info:</strong> Nama folder organisasi dan unit organisasi diambil dari data master.
-        Kelola referensi di <a href="{% url 'admin:ppid_dokumen_organisasi_changelist' %}">Organisasi</a>
-        dan <a href="{% url 'admin:ppid_dokumen_unitorganisasi_changelist' %}">Unit Organisasi</a>.
+        <strong>ℹ️ Info:</strong> Referensi data diambil dari master.
+        Kelola di: <a href="{% url 'admin:ppid_dokumen_tahundokumen_changelist' %}">Tahun</a>,
+        <a href="{% url 'admin:ppid_dokumen_organisasi_changelist' %}">Organisasi</a>,
+        <a href="{% url 'admin:ppid_dokumen_unitorganisasi_changelist' %}">Unit Organisasi</a>.
     </div>
 
     {% if messages %}
@@ -104,8 +105,15 @@
 
         <div class="form-row">
             <label for="id_tahun">Tahun</label>
-            <input type="number" name="tahun" id="id_tahun"
-                   value="{{ form.tahun.value|default_if_none:'' }}" min="2000" max="2100" required>
+            <select name="tahun" id="id_tahun" required>
+                <option value="">-- Pilih Tahun --</option>
+                {% for t in tahun_list %}
+                    <option value="{{ t.pk }}"
+                        {% if form.tahun.value == t.pk|stringformat:"s" %}selected{% endif %}>
+                        {{ t.tahun }}
+                    </option>
+                {% endfor %}
+            </select>
             <p class="help">{{ form.tahun.help_text }}</p>
             {% if form.tahun.errors %}
                 <p class="help" style="color:red;">{{ form.tahun.errors.0 }}</p>
@@ -187,10 +195,12 @@
     });
 
     unitSelect.addEventListener('change', updatePathPreview);
-    document.getElementById('id_tahun').addEventListener('input', updatePathPreview);
+    document.getElementById('id_tahun').addEventListener('change', updatePathPreview);
 
     function updatePathPreview() {
-        const tahun = document.getElementById('id_tahun').value || '<tahun>';
+        const tahunSelect = document.getElementById('id_tahun');
+        const tahunOption = tahunSelect.options[tahunSelect.selectedIndex];
+        const tahun = tahunOption && tahunOption.value ? tahunOption.textContent.trim() : '<tahun>';
         const orgOption = orgSelect.options[orgSelect.selectedIndex];
         const org = orgOption && orgOption.dataset.nama ? orgOption.dataset.nama : '<organisasi>';
         const unitOption = unitSelect.options[unitSelect.selectedIndex];

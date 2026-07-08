@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.utils.html import format_html
 from decouple import config
 
-from .models import UnitKerja, KategoriInformasi, DokumenPPID, Organisasi, UnitOrganisasi, CDNActivityLog
+from .models import UnitKerja, KategoriInformasi, DokumenPPID, Organisasi, UnitOrganisasi, CDNActivityLog, TahunDokumen
 from .forms import CDNUploadForm
 from .views import _get_sftp_connection, _sftp_mkdir_p
 
@@ -27,8 +27,15 @@ admin.site.register(DokumenPPID, HiddenModelAdmin)
 
 
 # ============================================================
-# Model yang tampil: Organisasi & Unit Organisasi
+# Model yang tampil: Tahun, Organisasi & Unit Organisasi
 # ============================================================
+
+@admin.register(TahunDokumen)
+class TahunDokumenAdmin(admin.ModelAdmin):
+    list_display = ["tahun"]
+    search_fields = ["tahun"]
+    ordering = ["-tahun"]
+
 
 class UnitOrganisasiInline(admin.TabularInline):
     model = UnitOrganisasi
@@ -119,6 +126,7 @@ class CDNUploadAdminView:
 
         organisasi_list = Organisasi.objects.all()
         unit_list = UnitOrganisasi.objects.select_related("organisasi").all()
+        tahun_list = TahunDokumen.objects.all()
 
         if request.method == "POST":
             form = CDNUploadForm(request.POST, request.FILES)
@@ -202,6 +210,7 @@ class CDNUploadAdminView:
             **admin.site.each_context(request),
             "title": "Upload File ke CDN",
             "form": form,
+            "tahun_list": tahun_list,
             "organisasi_list": organisasi_list,
             "unit_list": unit_list,
         }
