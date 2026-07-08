@@ -288,6 +288,29 @@ def cdn_files_table(request):
         q_lower = filter_q.lower()
         filtered = [f for f in filtered if q_lower in f["name"].lower()]
 
+    # Gabungkan metadata dari CDNFile (jenis dokumen, deskripsi)
+    cdn_file_map = {}
+    from .models import CDNFile as CDNFileModel, JenisDokumen
+    cdn_records = CDNFileModel.objects.select_related("jenis_dokumen").all()
+    for rec in cdn_records:
+        cdn_file_map[rec.file_path] = {
+            "jenis_dokumen": rec.jenis_dokumen.nama if rec.jenis_dokumen else "",
+            "deskripsi": rec.deskripsi,
+        }
+
+    for f in filtered:
+        meta = cdn_file_map.get(f["path"], {})
+        f["jenis_dokumen"] = meta.get("jenis_dokumen", "")
+        f["deskripsi_meta"] = meta.get("deskripsi", "")
+
+    # Ambil filter jenis dokumen
+    filter_jenis = request.GET.get("jenis", "")
+    if filter_jenis:
+        filtered = [f for f in filtered if f["jenis_dokumen"] == filter_jenis]
+
+    # Daftar jenis dokumen untuk filter
+    jenis_list = list(JenisDokumen.objects.values_list("nama", flat=True))
+
     # Organisasi yang tersedia setelah filter tahun diterapkan
     filtered_organisasi_set = sorted(set(
         f["organisasi"] for f in all_files
@@ -309,11 +332,13 @@ def cdn_files_table(request):
         "tahun_list": tahun_set,
         "organisasi_list": filtered_organisasi_set,
         "unit_list": filtered_unit_set,
+        "jenis_list": jenis_list,
         "filter_values": {
             "tahun": filter_tahun,
             "organisasi": filter_organisasi,
             "unit": filter_unit,
             "q": filter_q,
+            "jenis": filter_jenis,
         },
     }
     return render(request, "ppid_dokumen/cdn_files_table.html", context)

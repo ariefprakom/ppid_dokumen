@@ -1,5 +1,5 @@
 from django import forms
-from .models import Organisasi, UnitOrganisasi, TahunDokumen
+from .models import Organisasi, UnitOrganisasi, TahunDokumen, JenisDokumen
 
 
 class CDNUploadForm(forms.Form):
@@ -19,6 +19,18 @@ class CDNUploadForm(forms.Form):
         required=False,
         empty_label="-- Pilih Unit (opsional) --",
         help_text="Pilih unit organisasi (folder level 3)",
+    )
+    jenis_dokumen = forms.ModelChoiceField(
+        queryset=JenisDokumen.objects.all(),
+        required=False,
+        empty_label="-- Pilih Jenis Dokumen --",
+        help_text="Jenis dokumen sesuai kategori informasi publik",
+    )
+    deskripsi = forms.CharField(
+        required=False,
+        max_length=500,
+        widget=forms.Textarea(attrs={"rows": 2}),
+        help_text="Keterangan singkat tentang isi dokumen (opsional)",
     )
     file = forms.FileField(
         help_text="Pilih file yang akan diupload ke CDN",

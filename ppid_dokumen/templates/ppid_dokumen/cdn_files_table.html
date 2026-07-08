@@ -164,6 +164,15 @@
                         </select>
                     </div>
                     <div class="col-md-3">
+                        <label for="jenis" class="form-label fw-semibold">Jenis Dokumen</label>
+                        <select name="jenis" id="jenis" class="form-select">
+                            <option value="">-- Semua Jenis --</option>
+                            {% for j in jenis_list %}
+                                <option value="{{ j }}" {% if filter_values.jenis == j %}selected{% endif %}>{{ j }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label for="q" class="form-label fw-semibold">Nama Dokumen</label>
                         <input type="text" name="q" id="q" class="form-control" value="{{ filter_values.q }}" placeholder="Cari nama file...">
                     </div>
@@ -205,6 +214,7 @@
                             <th>Tahun</th>
                             <th>Organisasi</th>
                             <th>Unit Organisasi</th>
+                            <th>Jenis Dokumen</th>
                             <th>Dokumen</th>
                             <th>Ukuran</th>
                             <th>Aksi</th>
@@ -217,6 +227,13 @@
                             <td>{{ f.tahun }}</td>
                             <td>{{ f.organisasi }}</td>
                             <td>{{ f.unit_organisasi }}</td>
+                            <td>
+                                {% if f.jenis_dokumen %}
+                                <span class="badge bg-info text-dark">{{ f.jenis_dokumen }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
                             <td><strong>{{ f.name }}</strong></td>
                             <td>{{ f.size|filesizeformat }}</td>
                             <td>

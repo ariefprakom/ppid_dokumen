@@ -149,6 +149,23 @@
         </div>
 
         <div class="form-row">
+            <label for="id_jenis_dokumen">Jenis Dokumen</label>
+            <select name="jenis_dokumen" id="id_jenis_dokumen">
+                <option value="">-- Pilih Jenis Dokumen --</option>
+                {% for jd in jenis_dokumen_list %}
+                    <option value="{{ jd.pk }}">{{ jd.nama }}</option>
+                {% endfor %}
+            </select>
+            <p class="help">Kategori informasi publik (opsional)</p>
+        </div>
+
+        <div class="form-row">
+            <label for="id_deskripsi">Deskripsi / Keterangan</label>
+            <textarea name="deskripsi" id="id_deskripsi" rows="2" placeholder="Keterangan singkat tentang isi dokumen (opsional)"></textarea>
+            <p class="help">Opsional. Keterangan singkat untuk membantu identifikasi dokumen.</p>
+        </div>
+
+        <div class="form-row">
             <label for="id_file">File (bisa pilih banyak)</label>
             <input type="file" name="file" id="id_file" multiple required>
             <p class="help">Pilih satu atau beberapa file yang akan diupload ke CDN</p>

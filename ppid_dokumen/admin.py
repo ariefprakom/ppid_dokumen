@@ -6,7 +6,7 @@ from django.http import JsonResponse
 from django.utils.html import format_html
 from decouple import config
 
-from .models import UnitKerja, KategoriInformasi, DokumenPPID, Organisasi, UnitOrganisasi, CDNActivityLog, TahunDokumen
+from .models import UnitKerja, KategoriInformasi, DokumenPPID, Organisasi, UnitOrganisasi, CDNActivityLog, TahunDokumen, JenisDokumen, CDNFile
 from .forms import CDNUploadForm
 from .views import _get_sftp_connection, _sftp_mkdir_p
 
@@ -81,6 +81,25 @@ class CDNActivityLogAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # Hanya superuser yang bisa hapus log
         return request.user.is_superuser
+
+
+@admin.register(JenisDokumen)
+class JenisDokumenAdmin(admin.ModelAdmin):
+    list_display = ["nama", "deskripsi", "urutan"]
+    search_fields = ["nama", "deskripsi"]
+    list_editable = ["urutan"]
+
+
+@admin.register(CDNFile)
+class CDNFileAdmin(admin.ModelAdmin):
+    list_display = ["file_name", "jenis_dokumen", "organisasi", "unit_organisasi", "tahun", "uploaded_by", "uploaded_at"]
+    list_filter = ["jenis_dokumen", "organisasi", "tahun"]
+    search_fields = ["file_name", "file_path", "deskripsi"]
+    date_hierarchy = "uploaded_at"
+    readonly_fields = ["file_path", "file_name", "file_size", "uploaded_by", "uploaded_at"]
+
+    def has_module_permission(self, request):
+        return False
 
 
 # ============================================================
@@ -193,6 +212,34 @@ class CDNUploadAdminView:
                     # Invalidate cache
                     from django.core.cache import cache
                     cache.delete("cdn_files_all")
+
+                    # Simpan metadata CDNFile
+                    jenis_dok = form.cleaned_data.get("jenis_dokumen")
+                    deskripsi = form.cleaned_data.get("deskripsi", "")
+                    unit_obj = UnitOrganisasi.objects.filter(pk=unit_id).first() if unit_id else None
+
+                    for fname in uploaded:
+                        rel_path = f"{remote_dir}/{fname}"[len(config('CDN_ROOT_PATH')):].lstrip("/")
+                        # Cari ukuran file dari FILES
+                        file_size = 0
+                        for f in files:
+                            if f.name == fname:
+                                file_size = f.size
+                                break
+                        CDNFile.objects.update_or_create(
+                            file_path=rel_path,
+                            defaults={
+                                "file_name": fname,
+                                "jenis_dokumen": jenis_dok,
+                                "organisasi": org,
+                                "unit_organisasi": unit_obj,
+                                "tahun": tahun,
+                                "deskripsi": deskripsi,
+                                "uploaded_by": request.user,
+                                "file_size": file_size,
+                            }
+                        )
+
                     # Log aktivitas upload
                     from .views import _log_cdn_activity
                     for fname in uploaded:
@@ -216,6 +263,7 @@ class CDNUploadAdminView:
             "tahun_list": tahun_list,
             "organisasi_list": organisasi_list,
             "unit_list": unit_list,
+            "jenis_dokumen_list": JenisDokumen.objects.all(),
         }
         return render(request, "admin/cdn_upload.html", context)
 

@@ -197,3 +197,75 @@ class CDNActivityLog(models.Model):
 
     def __str__(self):
         return f"[{self.get_action_display()}] {self.file_name} - {self.user} ({self.timestamp:%Y-%m-%d %H:%M})"
+
+
+class JenisDokumen(models.Model):
+    """Referensi jenis dokumen sesuai UU KIP.
+    Contoh: Wajib Berkala, Serta Merta, Tersedia Setiap Saat, Dikecualikan."""
+    nama = models.CharField("Nama Jenis", max_length=100, unique=True)
+    deskripsi = models.TextField("Deskripsi", blank=True)
+    urutan = models.PositiveIntegerField(
+        "Urutan Tampil", default=0,
+        help_text="Urutan tampil di dropdown dan halaman publik (kecil = di atas)"
+    )
+
+    class Meta:
+        verbose_name = "Jenis Dokumen"
+        verbose_name_plural = "Jenis Dokumen"
+        ordering = ["urutan", "nama"]
+
+    def __str__(self):
+        return self.nama
+
+
+class CDNFile(models.Model):
+    """Metadata file yang tersimpan di CDN.
+    Merekam path, jenis dokumen, organisasi, dan info lainnya."""
+
+    file_path = models.CharField(
+        "Path di CDN", max_length=255, unique=True,
+        help_text="Path relatif dari root CDN, misal: 2025/AUPK/dokumen.pdf"
+    )
+    file_name = models.CharField("Nama File", max_length=255)
+    jenis_dokumen = models.ForeignKey(
+        JenisDokumen, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="cdn_files",
+        verbose_name="Jenis Dokumen",
+    )
+    organisasi = models.ForeignKey(
+        Organisasi, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="cdn_files",
+        verbose_name="Organisasi",
+    )
+    unit_organisasi = models.ForeignKey(
+        UnitOrganisasi, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="cdn_files",
+        verbose_name="Unit Organisasi",
+    )
+    tahun = models.CharField("Tahun", max_length=4, blank=True)
+    deskripsi = models.CharField(
+        "Deskripsi/Keterangan", max_length=500, blank=True,
+        help_text="Keterangan singkat tentang isi dokumen"
+    )
+    uploaded_by = models.ForeignKey(
+        "auth.User", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="cdn_uploads",
+        verbose_name="Diupload oleh",
+    )
+    uploaded_at = models.DateTimeField("Waktu Upload", auto_now_add=True)
+    file_size = models.PositiveIntegerField("Ukuran (bytes)", default=0)
+
+    class Meta:
+        verbose_name = "File CDN"
+        verbose_name_plural = "File CDN"
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return self.file_name
+
+    @property
+    def cdn_url(self):
+        """URL publik file di CDN."""
+        from decouple import config
+        base_url = config('CDN_BASE_URL', default='')
+        return f"{base_url}/{self.file_path}"
