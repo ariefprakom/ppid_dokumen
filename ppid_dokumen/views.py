@@ -1,5 +1,6 @@
 import paramiko, stat
 from decouple import config
+from django.core.cache import cache
 from django.db.models import Q
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -7,6 +8,9 @@ from django.views.decorators.http import require_POST
 from django.contrib.admin.views.decorators import staff_member_required
 
 from .models import DokumenPPID, UnitKerja, KategoriInformasi, CDNActivityLog
+
+# Cache timeout untuk data CDN (5 menit)
+CDN_CACHE_TIMEOUT = 300
 
 
 def _get_client_ip(request):
@@ -232,29 +236,35 @@ def _sftp_walk(sftp, remote_path, base_url, root_path):
 def cdn_files_table(request):
     """View tabel semua file CDN dengan filter (tahun, organisasi, unit organisasi)."""
 
-    host = config('SFTP_HOST')
-    port = config('SFTP_PORT', default=22, cast=int)
-    username = config('SFTP_USERNAME')
-    password = config('SFTP_PASSWORD')
     base_url = config('CDN_BASE_URL')
     root_path = config('CDN_ROOT_PATH')
 
-    # Koneksi SFTP
-    transport = paramiko.Transport((host, port))
-    transport.connect(username=username, password=password)
-    sftp = paramiko.SFTPClient.from_transport(transport)
+    # Coba ambil dari cache dulu
+    cache_key = "cdn_files_all"
+    cached = cache.get(cache_key)
 
-    try:
-        # Ambil semua folder level-1 langsung (termasuk yang kosong)
-        top_folders = []
-        for entry in sftp.listdir_attr(root_path):
-            if stat.S_ISDIR(entry.st_mode):
-                top_folders.append(entry.filename)
+    if cached:
+        top_folders, all_files = cached
+    else:
+        # Koneksi SFTP hanya kalau cache miss
+        transport = paramiko.Transport((config('SFTP_HOST'), config('SFTP_PORT', default=22, cast=int)))
+        transport.connect(username=config('SFTP_USERNAME'), password=config('SFTP_PASSWORD'))
+        sftp = paramiko.SFTPClient.from_transport(transport)
 
-        all_files = _sftp_walk(sftp, root_path, base_url, root_path)
-    finally:
-        sftp.close()
-        transport.close()
+        try:
+            # Ambil semua folder level-1 langsung (termasuk yang kosong)
+            top_folders = []
+            for entry in sftp.listdir_attr(root_path):
+                if stat.S_ISDIR(entry.st_mode):
+                    top_folders.append(entry.filename)
+
+            all_files = _sftp_walk(sftp, root_path, base_url, root_path)
+        finally:
+            sftp.close()
+            transport.close()
+
+        # Simpan ke cache
+        cache.set(cache_key, (top_folders, all_files), CDN_CACHE_TIMEOUT)
 
     # Kumpulkan opsi filter — tahun dari folder level-1 (bukan hanya dari file)
     tahun_set = sorted(top_folders, reverse=True)
@@ -350,6 +360,9 @@ def cdn_file_delete(request):
     file_name = file_path.split("/")[-1]
     _log_cdn_activity(request, "delete", file_path, file_name)
 
+    # Invalidate cache
+    cache.delete("cdn_files_all")
+
     return JsonResponse({"success": True, "message": f"File '{file_path}' berhasil dihapus."})
 
 
@@ -414,6 +427,9 @@ def cdn_file_rename(request):
         request, "rename", old_path, old_name,
         detail=f"Rename: {old_name} → {new_name}"
     )
+
+    # Invalidate cache
+    cache.delete("cdn_files_all")
 
     return JsonResponse({
         "success": True,

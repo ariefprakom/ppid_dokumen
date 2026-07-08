@@ -190,6 +190,9 @@ class CDNUploadAdminView:
                         request,
                         f"✅ Berhasil upload {len(uploaded)} file ke {public_dir}/: {file_list}"
                     )
+                    # Invalidate cache
+                    from django.core.cache import cache
+                    cache.delete("cdn_files_all")
                     # Log aktivitas upload
                     from .views import _log_cdn_activity
                     for fname in uploaded:
