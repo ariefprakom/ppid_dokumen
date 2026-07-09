@@ -344,6 +344,99 @@ def cdn_files_table(request):
     return render(request, "ppid_dokumen/cdn_files_table.html", context)
 
 
+def cdn_files_by_jenis(request, slug):
+    """View tabel file CDN yang ter-filter berdasarkan jenis dokumen (via slug URL)."""
+    from .models import CDNFile as CDNFileModel, JenisDokumen
+
+    jenis = get_object_or_404(JenisDokumen, slug=slug)
+
+    base_url = config('CDN_BASE_URL')
+    root_path = config('CDN_ROOT_PATH')
+
+    # Ambil data CDN (dari cache atau SFTP)
+    cache_key = "cdn_files_all"
+    cached = cache.get(cache_key)
+
+    if cached:
+        top_folders, all_files = cached
+    else:
+        transport = paramiko.Transport((config('SFTP_HOST'), config('SFTP_PORT', default=22, cast=int)))
+        transport.connect(username=config('SFTP_USERNAME'), password=config('SFTP_PASSWORD'))
+        sftp = paramiko.SFTPClient.from_transport(transport)
+
+        try:
+            top_folders = []
+            for entry in sftp.listdir_attr(root_path):
+                if stat.S_ISDIR(entry.st_mode):
+                    top_folders.append(entry.filename)
+            all_files = _sftp_walk(sftp, root_path, base_url, root_path)
+        finally:
+            sftp.close()
+            transport.close()
+
+        cache.set(cache_key, (top_folders, all_files), CDN_CACHE_TIMEOUT)
+
+    # Gabungkan metadata dari CDNFile
+    cdn_file_map = {}
+    cdn_records = CDNFileModel.objects.select_related("jenis_dokumen").all()
+    for rec in cdn_records:
+        cdn_file_map[rec.file_path] = {
+            "jenis_dokumen": rec.jenis_dokumen.nama if rec.jenis_dokumen else "",
+            "deskripsi": rec.deskripsi,
+        }
+
+    for f in all_files:
+        meta = cdn_file_map.get(f["path"], {})
+        f["jenis_dokumen"] = meta.get("jenis_dokumen", "")
+        f["deskripsi_meta"] = meta.get("deskripsi", "")
+
+    # Filter hanya file dengan jenis dokumen ini
+    filtered = [f for f in all_files if f["jenis_dokumen"] == jenis.nama]
+
+    # Sub-filter dari query string
+    filter_tahun = request.GET.get("tahun", "")
+    filter_organisasi = request.GET.get("organisasi", "")
+    filter_unit = request.GET.get("unit", "")
+    filter_q = request.GET.get("q", "")
+
+    if filter_tahun:
+        filtered = [f for f in filtered if f["tahun"] == filter_tahun]
+    if filter_organisasi:
+        filtered = [f for f in filtered if f["organisasi"] == filter_organisasi]
+    if filter_unit:
+        filtered = [f for f in filtered if f["unit_organisasi"] == filter_unit]
+    if filter_q:
+        q_lower = filter_q.lower()
+        filtered = [f for f in filtered if q_lower in f["name"].lower()]
+
+    # Opsi filter berdasarkan file yang ada di jenis ini
+    all_jenis_files = [f for f in all_files if f["jenis_dokumen"] == jenis.nama]
+    tahun_set = sorted(set(f["tahun"] for f in all_jenis_files if f["tahun"]), reverse=True)
+    organisasi_set = sorted(set(f["organisasi"] for f in all_jenis_files if f["organisasi"]))
+    unit_set = sorted(set(
+        f["unit_organisasi"] for f in all_jenis_files
+        if f["unit_organisasi"]
+        and (not filter_tahun or f["tahun"] == filter_tahun)
+        and (not filter_organisasi or f["organisasi"] == filter_organisasi)
+    ))
+
+    context = {
+        "files": filtered,
+        "total_files": len(all_jenis_files),
+        "jenis": jenis,
+        "tahun_list": tahun_set,
+        "organisasi_list": organisasi_set,
+        "unit_list": unit_set,
+        "filter_values": {
+            "tahun": filter_tahun,
+            "organisasi": filter_organisasi,
+            "unit": filter_unit,
+            "q": filter_q,
+        },
+    }
+    return render(request, "ppid_dokumen/cdn_files_jenis.html", context)
+
+
 # ============================================================
 # CDN File Management: Delete & Rename
 # ============================================================

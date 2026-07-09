@@ -203,6 +203,10 @@ class JenisDokumen(models.Model):
     """Referensi jenis dokumen sesuai UU KIP.
     Contoh: Wajib Berkala, Serta Merta, Tersedia Setiap Saat, Dikecualikan."""
     nama = models.CharField("Nama Jenis", max_length=100, unique=True)
+    slug = models.SlugField(
+        "Slug URL", max_length=100, unique=True, default="",
+        help_text="URL-friendly identifier, contoh: wajib-berkala. Otomatis di-generate jika kosong."
+    )
     deskripsi = models.TextField("Deskripsi", blank=True)
     urutan = models.PositiveIntegerField(
         "Urutan Tampil", default=0,
@@ -216,6 +220,12 @@ class JenisDokumen(models.Model):
 
     def __str__(self):
         return self.nama
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            self.slug = slugify(self.nama)
+        super().save(*args, **kwargs)
 
 
 class CDNFile(models.Model):

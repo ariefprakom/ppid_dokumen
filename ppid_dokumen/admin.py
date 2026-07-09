@@ -85,9 +85,10 @@ class CDNActivityLogAdmin(admin.ModelAdmin):
 
 @admin.register(JenisDokumen)
 class JenisDokumenAdmin(admin.ModelAdmin):
-    list_display = ["nama", "deskripsi", "urutan"]
+    list_display = ["nama", "slug", "deskripsi", "urutan"]
     search_fields = ["nama", "deskripsi"]
     list_editable = ["urutan"]
+    prepopulated_fields = {"slug": ("nama",)}
 
 
 @admin.register(CDNFile)

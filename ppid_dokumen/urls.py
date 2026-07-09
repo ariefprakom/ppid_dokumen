@@ -7,6 +7,7 @@ urlpatterns = [
     # path("", views.document_list, name="list"),
     path('data/', views.list_sftp_files_html, name='list_cdn_files'),
     path('', views.cdn_files_table, name='cdn_files_table'),
+    path('<slug:slug>/', views.cdn_files_by_jenis, name='cdn_files_by_jenis'),
     path("unduh/<int:pk>/", views.document_download, name="download"),
 
     # CDN file management (admin only)
