@@ -209,20 +209,17 @@
                 <table id="tabel-cdn" class="table table-striped table-hover align-middle" style="width:100%">
                     <thead>
                         <tr>
-                            <!-- <th>No.</th> -->
                             <th>Dokumen</th>
                             <th>Jenis Dokumen</th>
                             <th>Organisasi</th>
                             <th>Unit Organisasi</th>
-                            <!-- <th>Ukuran</th> -->
-                             <th>Tahun</th>
+                            <th>Tahun</th>
                             <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for f in files %}
                         <tr>
-                            <!-- <td>{{ forloop.counter }}</td> -->
                             <td><strong>{{ f.name }}</strong></td>
                             <td>
                                 {% if f.jenis_dokumen %}
@@ -233,8 +230,7 @@
                             </td>
                             <td>{{ f.organisasi }}</td>
                             <td>{{ f.unit_organisasi }}</td>
-                            <!-- <td>{{ f.size|filesizeformat }}</td> -->
-                             <td>{{ f.tahun }}</td>
+                            <td>{{ f.tahun }}</td>
                             <td>
                                 <a href="{{ f.url }}" class="btn btn-sm btn-ppid btn-download" target="_blank">
                                     <i class="bi bi-download me-1"></i>Unduh
@@ -277,17 +273,17 @@
             buttons: [
                 {
                     extend: 'csv',
-                    className: 'btn btn-sm btn-outline-success',
+                    className: 'btn btn-sm btn-success text-white',
                     text: '<i class="bi bi-filetype-csv me-1"></i>CSV'
                 },
                 {
                     extend: 'excel',
-                    className: 'btn btn-sm btn-outline-success',
+                    className: 'btn btn-sm btn-success text-white',
                     text: '<i class="bi bi-file-earmark-excel me-1"></i>Excel'
                 }
             ],
-            pageLength: 25,
-            order: [[2, 'asc'], [1, 'asc']],
+            pageLength: 10,
+            order: [[4, 'desc'],[1, 'desc'],[2, 'asc'],[3, 'asc']],
             language: {
                 search: "",
                 searchPlaceholder: "Cari di tabel...",

@@ -8,3 +8,7 @@ Baseline sebelum sistem versioning diterapkan.
 - Edit laman depan admin
 - Edit laman depan /ppid (tambah tombol admin, sesuaikan kolom tabel)
 - Buat fitur slug untuk laman khusus sesuai slug
+
+## 1.0.3 - (9 Juli 2026 - 16.30 WIB)
+- Sesuaikan ordering tabel : tahun - jenis - org - unit org
+-

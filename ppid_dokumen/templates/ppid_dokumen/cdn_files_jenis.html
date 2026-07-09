@@ -194,11 +194,11 @@
         $('#tabel-jenis').DataTable({
             dom: '<"d-flex justify-content-between align-items-center mb-3"Bf>rtip',
             buttons: [
-                { extend: 'csv', className: 'btn btn-sm btn-outline-success', text: '<i class="bi bi-filetype-csv me-1"></i>CSV' },
-                { extend: 'excel', className: 'btn btn-sm btn-outline-success', text: '<i class="bi bi-file-earmark-excel me-1"></i>Excel' }
+                { extend: 'csv', className: 'btn btn-sm btn-success text-white', text: '<i class="bi bi-filetype-csv me-1"></i>CSV' },
+                { extend: 'excel', className: 'btn btn-sm btn-success text-white', text: '<i class="bi bi-file-earmark-excel me-1"></i>Excel' }
             ],
-            pageLength: 25,
-            order: [[1, 'asc'], [0, 'asc']],
+            pageLength: 10,
+            order: [[4, 'desc'],[1, 'desc'],[2, 'asc'],[3, 'asc']],
             language: {
                 search: "", searchPlaceholder: "Cari di tabel...",
                 lengthMenu: "Tampilkan _MENU_ data",
