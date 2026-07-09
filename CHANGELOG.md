@@ -14,3 +14,4 @@ Baseline sebelum sistem versioning diterapkan.
 - Perbaiki UI unduh excel
 - Buat fitur isi link sebagai alternatif upload file
 - Tambah kemampuan audit log terhadap seluruh fitur
+- Hapus recent history di menu admin
