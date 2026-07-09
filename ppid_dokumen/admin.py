@@ -93,11 +93,34 @@ class JenisDokumenAdmin(admin.ModelAdmin):
 
 @admin.register(CDNFile)
 class CDNFileAdmin(admin.ModelAdmin):
-    list_display = ["file_name", "jenis_dokumen", "organisasi", "unit_organisasi", "tahun", "uploaded_by", "uploaded_at"]
+    list_display = ["file_name", "jenis_dokumen", "organisasi", "unit_organisasi", "tahun", "is_link", "uploaded_by", "uploaded_at"]
     list_filter = ["jenis_dokumen", "organisasi", "tahun"]
-    search_fields = ["file_name", "file_path", "deskripsi"]
+    search_fields = ["file_name", "file_path", "deskripsi", "external_url"]
     date_hierarchy = "uploaded_at"
-    readonly_fields = ["file_path", "file_name", "file_size", "uploaded_by", "uploaded_at"]
+    readonly_fields = ["file_path", "file_name", "file_size", "uploaded_by", "uploaded_at", "external_url"]
+
+    @admin.display(description="Link?", boolean=True)
+    def is_link(self, obj):
+        return bool(obj.external_url)
+
+    def delete_model(self, request, obj):
+        """Log saat hapus CDNFile dari admin."""
+        from .views import _log_cdn_activity
+        _log_cdn_activity(
+            request, "delete", obj.file_path, obj.file_name,
+            detail=f"Dihapus dari admin (CDNFile record)"
+        )
+        super().delete_model(request, obj)
+
+    def delete_queryset(self, request, queryset):
+        """Log saat hapus banyak CDNFile dari admin."""
+        from .views import _log_cdn_activity
+        for obj in queryset:
+            _log_cdn_activity(
+                request, "delete", obj.file_path, obj.file_name,
+                detail=f"Bulk delete dari admin"
+            )
+        super().delete_queryset(request, queryset)
 
     def has_module_permission(self, request):
         return True
@@ -210,7 +233,7 @@ class CDNUploadAdminView:
                     )
                     from .views import _log_cdn_activity
                     _log_cdn_activity(
-                        request, "upload", virtual_path, link_nama,
+                        request, "upload_link", virtual_path, link_nama,
                         detail=f"Link eksternal: {external_url}"
                     )
                     return redirect("admin:cdn_upload")

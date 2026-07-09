@@ -655,6 +655,14 @@ def cdn_file_set_jenis(request):
             )
 
         jenis_nama = jenis_obj.nama if jenis_obj else "(tidak ada)"
+
+        # Log aktivitas
+        _log_cdn_activity(
+            request, "set_jenis", file_path,
+            cdn_file.file_name,
+            detail=f"Jenis diset ke: {jenis_nama}"
+        )
+
         return JsonResponse({
             "success": True,
             "message": f"Jenis dokumen '{cdn_file.file_name}' diset ke: {jenis_nama}",

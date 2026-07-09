@@ -171,8 +171,10 @@ class CDNActivityLog(models.Model):
 
     ACTION_CHOICES = [
         ("upload", "Upload"),
+        ("upload_link", "Upload Link"),
         ("rename", "Rename"),
         ("delete", "Hapus"),
+        ("set_jenis", "Set Jenis Dokumen"),
     ]
 
     user = models.ForeignKey(
@@ -180,7 +182,7 @@ class CDNActivityLog(models.Model):
         null=True, blank=True, related_name="cdn_logs",
         verbose_name="User",
     )
-    action = models.CharField("Aksi", max_length=10, choices=ACTION_CHOICES)
+    action = models.CharField("Aksi", max_length=20, choices=ACTION_CHOICES)
     file_path = models.CharField("Path File", max_length=500)
     file_name = models.CharField("Nama File", max_length=255)
     detail = models.TextField(
