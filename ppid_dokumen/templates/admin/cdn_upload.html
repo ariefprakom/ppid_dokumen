@@ -166,11 +166,39 @@
         </div>
 
         <div class="form-row">
-            <label for="id_file">File (bisa pilih banyak)</label>
-            <input type="file" name="file" id="id_file" multiple required>
-            <p class="help">Pilih satu atau beberapa file yang akan diupload ke CDN</p>
+            <label>Sumber Dokumen</label>
+            <div style="display:flex; gap:12px; margin-bottom:8px;">
+                <label style="font-weight:normal; cursor:pointer;">
+                    <input type="radio" name="source_type" value="file" checked onchange="toggleSource()"> Upload File
+                </label>
+                <label style="font-weight:normal; cursor:pointer;">
+                    <input type="radio" name="source_type" value="link" onchange="toggleSource()"> Salin Link / URL
+                </label>
+            </div>
+        </div>
+
+        <div id="source-file" class="form-row">
+            <label for="id_file">File</label>
+            <input type="file" name="file" id="id_file" multiple>
+            <p class="help">Pilih file yang akan diupload ke CDN. Rapikan nama file sebelum upload.</p>
             {% if form.file.errors %}
                 <p class="help" style="color:red;">{{ form.file.errors.0 }}</p>
+            {% endif %}
+        </div>
+
+        <div id="source-link" class="form-row" style="display:none;">
+            <label for="id_link_nama">Nama Dokumen</label>
+            <input type="text" name="link_nama" id="id_link_nama" placeholder="Contoh: SK Rektor No 123 Tahun 2025.pdf">
+            <p class="help">Nama tampilan untuk dokumen ini (wajib jika pakai URL)</p>
+            {% if form.link_nama.errors %}
+                <p class="help" style="color:red;">{{ form.link_nama.errors.0 }}</p>
+            {% endif %}
+
+            <label for="id_external_url" style="margin-top:12px;">URL Link</label>
+            <input type="url" name="external_url" id="id_external_url" placeholder="https://drive.google.com/...">
+            <p class="help">URL lengkap ke dokumen (Google Drive, cloud storage, dsb)</p>
+            {% if form.external_url.errors %}
+                <p class="help" style="color:red;">{{ form.external_url.errors.0 }}</p>
             {% endif %}
         </div>
 
@@ -231,5 +259,23 @@
 
     // Trigger pada load untuk set state awal
     updatePathPreview();
+
+    // Toggle antara upload file dan salin link
+    function toggleSource() {
+        const sourceType = document.querySelector('input[name="source_type"]:checked').value;
+        const fileSection = document.getElementById('source-file');
+        const linkSection = document.getElementById('source-link');
+        const pathPreview = document.querySelector('.path-preview');
+
+        if (sourceType === 'file') {
+            fileSection.style.display = 'block';
+            linkSection.style.display = 'none';
+            pathPreview.style.display = 'block';
+        } else {
+            fileSection.style.display = 'none';
+            linkSection.style.display = 'block';
+            pathPreview.style.display = 'none';
+        }
+    }
 </script>
 {% endblock %}

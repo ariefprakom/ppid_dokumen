@@ -270,6 +270,34 @@ def cdn_files_table(request):
     tahun_set = sorted(top_folders, reverse=True)
     organisasi_set = sorted(set(f["organisasi"] for f in all_files if f["organisasi"]))
 
+    # Gabungkan record link eksternal dari database (yang tidak ada file fisik di CDN)
+    from .models import CDNFile as CDNFileModel, JenisDokumen
+    cdn_records = CDNFileModel.objects.select_related(
+        "jenis_dokumen", "organisasi", "unit_organisasi"
+    ).all()
+
+    existing_paths = {f["path"] for f in all_files}
+    for rec in cdn_records:
+        if rec.external_url and rec.file_path not in existing_paths:
+            all_files.append({
+                "name": rec.file_name,
+                "tahun": rec.tahun or "",
+                "organisasi": rec.organisasi.nama if rec.organisasi else "",
+                "unit_organisasi": rec.unit_organisasi.nama if rec.unit_organisasi else "",
+                "path": rec.file_path,
+                "url": rec.external_url,
+                "size": 0,
+                "ext": "link",
+            })
+
+    # Build metadata map
+    cdn_file_map = {}
+    for rec in cdn_records:
+        cdn_file_map[rec.file_path] = {
+            "jenis_dokumen": rec.jenis_dokumen.nama if rec.jenis_dokumen else "",
+            "deskripsi": rec.deskripsi,
+        }
+
     # Ambil filter dari query string
     filter_tahun = request.GET.get("tahun", "")
     filter_organisasi = request.GET.get("organisasi", "")
@@ -288,16 +316,7 @@ def cdn_files_table(request):
         q_lower = filter_q.lower()
         filtered = [f for f in filtered if q_lower in f["name"].lower()]
 
-    # Gabungkan metadata dari CDNFile (jenis dokumen, deskripsi)
-    cdn_file_map = {}
-    from .models import CDNFile as CDNFileModel, JenisDokumen
-    cdn_records = CDNFileModel.objects.select_related("jenis_dokumen").all()
-    for rec in cdn_records:
-        cdn_file_map[rec.file_path] = {
-            "jenis_dokumen": rec.jenis_dokumen.nama if rec.jenis_dokumen else "",
-            "deskripsi": rec.deskripsi,
-        }
-
+    # Terapkan metadata (jenis dokumen) ke filtered
     for f in filtered:
         meta = cdn_file_map.get(f["path"], {})
         f["jenis_dokumen"] = meta.get("jenis_dokumen", "")
@@ -376,14 +395,31 @@ def cdn_files_by_jenis(request, slug):
 
         cache.set(cache_key, (top_folders, all_files), CDN_CACHE_TIMEOUT)
 
-    # Gabungkan metadata dari CDNFile
+    # Gabungkan metadata dari CDNFile + tambahkan link eksternal
     cdn_file_map = {}
-    cdn_records = CDNFileModel.objects.select_related("jenis_dokumen").all()
+    cdn_records = CDNFileModel.objects.select_related(
+        "jenis_dokumen", "organisasi", "unit_organisasi"
+    ).all()
     for rec in cdn_records:
         cdn_file_map[rec.file_path] = {
             "jenis_dokumen": rec.jenis_dokumen.nama if rec.jenis_dokumen else "",
             "deskripsi": rec.deskripsi,
         }
+
+    # Tambahkan record link eksternal (yang tidak ada file fisik di CDN)
+    existing_paths = {f["path"] for f in all_files}
+    for rec in cdn_records:
+        if rec.external_url and rec.file_path not in existing_paths:
+            all_files.append({
+                "name": rec.file_name,
+                "tahun": rec.tahun or "",
+                "organisasi": rec.organisasi.nama if rec.organisasi else "",
+                "unit_organisasi": rec.unit_organisasi.nama if rec.unit_organisasi else "",
+                "path": rec.file_path,
+                "url": rec.external_url,
+                "size": 0,
+                "ext": "link",
+            })
 
     for f in all_files:
         meta = cdn_file_map.get(f["path"], {})

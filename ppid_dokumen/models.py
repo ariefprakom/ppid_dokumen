@@ -264,6 +264,10 @@ class CDNFile(models.Model):
     )
     uploaded_at = models.DateTimeField("Waktu Upload", auto_now_add=True)
     file_size = models.PositiveIntegerField("Ukuran (bytes)", default=0)
+    external_url = models.URLField(
+        "URL Eksternal", max_length=500, blank=True,
+        help_text="Isi URL jika dokumen tersimpan di luar CDN (Google Drive, dsb). Kosongkan jika upload file."
+    )
 
     class Meta:
         verbose_name = "File CDN"
@@ -275,7 +279,14 @@ class CDNFile(models.Model):
 
     @property
     def cdn_url(self):
-        """URL publik file di CDN."""
+        """URL publik file di CDN, atau URL eksternal jika ada."""
+        if self.external_url:
+            return self.external_url
         from decouple import config
         base_url = config('CDN_BASE_URL', default='')
         return f"{base_url}/{self.file_path}"
+
+    @property
+    def is_external(self):
+        """True jika dokumen menggunakan link eksternal."""
+        return bool(self.external_url)

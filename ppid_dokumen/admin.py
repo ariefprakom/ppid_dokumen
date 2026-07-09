@@ -100,7 +100,7 @@ class CDNFileAdmin(admin.ModelAdmin):
     readonly_fields = ["file_path", "file_name", "file_size", "uploaded_by", "uploaded_at"]
 
     def has_module_permission(self, request):
-        return False
+        return True
 
 
 # ============================================================
@@ -154,6 +154,8 @@ class CDNUploadAdminView:
                 tahun = form.cleaned_data["tahun"]
                 organisasi_id = form.cleaned_data["organisasi"]
                 unit_id = form.cleaned_data.get("unit_organisasi")
+                external_url = form.cleaned_data.get("external_url", "").strip()
+                link_nama = form.cleaned_data.get("link_nama", "").strip()
 
                 # Ambil nama folder dari database
                 try:
@@ -164,12 +166,54 @@ class CDNUploadAdminView:
                     return redirect("admin:cdn_upload")
 
                 unit_folder = ""
+                unit_obj = None
                 if unit_id:
                     try:
-                        unit = UnitOrganisasi.objects.get(pk=unit_id)
-                        unit_folder = unit.nama
+                        unit_obj = UnitOrganisasi.objects.get(pk=unit_id)
+                        unit_folder = unit_obj.nama
                     except UnitOrganisasi.DoesNotExist:
                         pass
+
+                jenis_dok = form.cleaned_data.get("jenis_dokumen")
+                deskripsi = form.cleaned_data.get("deskripsi", "")
+
+                # ========== MODE LINK ==========
+                if external_url:
+                    # Bangun path virtual (untuk referensi, bukan path fisik)
+                    if unit_folder:
+                        virtual_path = f"{tahun}/{org_folder}/{unit_folder}/{link_nama}"
+                    else:
+                        virtual_path = f"{tahun}/{org_folder}/{link_nama}"
+
+                    CDNFile.objects.update_or_create(
+                        file_path=virtual_path,
+                        defaults={
+                            "file_name": link_nama,
+                            "jenis_dokumen": jenis_dok,
+                            "organisasi": org,
+                            "unit_organisasi": unit_obj,
+                            "tahun": tahun,
+                            "deskripsi": deskripsi,
+                            "uploaded_by": request.user,
+                            "file_size": 0,
+                            "external_url": external_url,
+                        }
+                    )
+
+                    # Invalidate cache
+                    from django.core.cache import cache
+                    cache.delete("cdn_files_all")
+
+                    messages.success(
+                        request,
+                        f"✅ Link berhasil disimpan: {link_nama} → {external_url}"
+                    )
+                    from .views import _log_cdn_activity
+                    _log_cdn_activity(
+                        request, "upload", virtual_path, link_nama,
+                        detail=f"Link eksternal: {external_url}"
+                    )
+                    return redirect("admin:cdn_upload")
 
                 # Bangun path tujuan
                 if unit_folder:
@@ -215,10 +259,6 @@ class CDNUploadAdminView:
                     cache.delete("cdn_files_all")
 
                     # Simpan metadata CDNFile
-                    jenis_dok = form.cleaned_data.get("jenis_dokumen")
-                    deskripsi = form.cleaned_data.get("deskripsi", "")
-                    unit_obj = UnitOrganisasi.objects.filter(pk=unit_id).first() if unit_id else None
-
                     for fname in uploaded:
                         rel_path = f"{remote_dir}/{fname}"[len(config('CDN_ROOT_PATH')):].lstrip("/")
                         # Cari ukuran file dari FILES
